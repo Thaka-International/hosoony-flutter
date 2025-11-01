@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "302783003103",
+    "project_id": "hosoony-abbba",
+    "storage_bucket": "hosoony-abbba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:302783003103:android:f1429b9ca2ec7319292c6a",
+        "android_client_info": {
+          "package_name": "app.hosoony.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmOIADuKtVIbxrfbh3ip0sNf3YBkFi5pE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:302783003103:android:0b537a8bb28158fa292c6a",
+        "android_client_info": {
+          "package_name": "com.hosoony.hosoony_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmOIADuKtVIbxrfbh3ip0sNf3YBkFi5pE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

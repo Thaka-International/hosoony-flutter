@@ -1,0 +1,1536 @@
+openapi: 3.1.0
+info:
+  title: Hosoony Quran LMS API
+  description: |
+    نظام إدارة التعلم القرآني - واجهة برمجة التطبيقات
+    
+    ## الميزات الرئيسية
+    - إدارة المستخدمين والفصول
+    - نظام الرفيقات والغرف الافتراضية
+    - التقييمات والأداء
+    - الإشعارات متعددة القنوات
+    - التقارير والإحصائيات
+    - نظام الدفع والاشتراكات
+    
+    ## المصادقة
+    جميع الطلبات تتطلب مصادقة باستخدام Bearer Token من Laravel Sanctum.
+    
+    ## اللغة والترميز
+    جميع النصوص باللغة العربية مع دعم UTF-8.
+  version: 1.0.0
+  contact:
+    name: Hosoony Support
+    email: support@hosoony.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.hosoony.com/api/v1
+    description: Production server
+  - url: https://staging-api.hosoony.com/api/v1
+    description: Staging server
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: تسجيل الدخول
+      description: تسجيل دخول المستخدم والحصول على token المصادقة
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: student@hosoony.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+      responses:
+        '200':
+          description: تسجيل الدخول ناجح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: تم تسجيل الدخول بنجاح
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+                    example: 1|abcdef123456789
+        '401':
+          description: بيانات الدخول غير صحيحة
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: تسجيل الخروج
+      description: تسجيل خروج المستخدم وإلغاء token المصادقة
+      responses:
+        '200':
+          description: تسجيل الخروج ناجح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: تم تسجيل الخروج بنجاح
+
+  /me:
+    get:
+      tags:
+        - User
+      summary: الحصول على بيانات المستخدم الحالي
+      description: الحصول على بيانات المستخدم المسجل حالياً
+      responses:
+        '200':
+          description: بيانات المستخدم
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /me/companions:
+    get:
+      tags:
+        - Companions
+      summary: الحصول على رفيقات اليوم
+      description: الحصول على رفيقات المستخدم للتاريخ المحدد
+      parameters:
+        - name: date
+          in: query
+          description: تاريخ الرفيقات (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2025-10-07"
+      responses:
+        '200':
+          description: بيانات الرفيقات
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                    example: "2025-10-07"
+                  room_number:
+                    type: string
+                    example: "1"
+                  zoom_url:
+                    type: string
+                    format: uri
+                    example: "https://zoom.us/j/123456789"
+                  zoom_password:
+                    type: string
+                    nullable: true
+                    example: "password123"
+                  companions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 2
+                        name:
+                          type: string
+                          example: "عائشة"
+        '404':
+          description: لا توجد رفيقات لهذا اليوم
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /classes/{classId}/companions/generate:
+    post:
+      tags:
+        - Companions
+      summary: توليد الرفيقات للفصل
+      description: توليد رفيقات جديدة للفصل في التاريخ المحدد
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          description: معرف الفصل
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - target_date
+                - grouping
+                - algorithm
+                - attendance_source
+              properties:
+                target_date:
+                  type: string
+                  format: date
+                  example: "2025-10-07"
+                grouping:
+                  type: string
+                  enum: [pairs, triplets]
+                  example: "pairs"
+                algorithm:
+                  type: string
+                  enum: [random, rotation, manual]
+                  example: "rotation"
+                attendance_source:
+                  type: string
+                  enum: [all, committed_only]
+                  example: "committed_only"
+                locked_pairs:
+                  type: array
+                  items:
+                    type: array
+                    items:
+                      type: integer
+                  example: [[1, 2]]
+      responses:
+        '200':
+          description: تم توليد الرفيقات بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "تم توليد الرفيقات بنجاح"
+                  publication_id:
+                    type: integer
+                    example: 1
+                  pairings:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: integer
+                    example: [[1, 2], [3, 4]]
+                  students_count:
+                    type: integer
+                    example: 4
+                  groups_count:
+                    type: integer
+                    example: 2
+        '403':
+          description: غير مصرح لك بهذا الإجراء
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /classes/{classId}/companions/{targetDate}/publish:
+    post:
+      tags:
+        - Companions
+      summary: نشر الرفيقات
+      description: نشر الرفيقات المولدة وإرسال الإشعارات للطالبات
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          description: معرف الفصل
+          schema:
+            type: integer
+            example: 1
+        - name: targetDate
+          in: path
+          required: true
+          description: تاريخ الهدف (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: "2025-10-07"
+      responses:
+        '200':
+          description: تم نشر الرفيقات بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "تم نشر الرفيقات بنجاح"
+                  publication_id:
+                    type: integer
+                    example: 1
+                  room_assignments:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: integer
+                    example:
+                      "1": [1, 2]
+                      "2": [3, 4]
+                  published_at:
+                    type: string
+                    format: date-time
+                    example: "2025-10-06T23:59:00Z"
+        '409':
+          description: تم نشر الرفيقات مسبقاً
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /performance-evaluations/sessions/{sessionId}:
+    get:
+      tags:
+        - Performance Evaluation
+      summary: الحصول على تقييمات الجلسة
+      description: الحصول على جميع التقييمات لجلسة معينة
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: معرف الجلسة
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: قائمة التقييمات
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: integer
+                    example: 1
+                  evaluations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PerformanceEvaluation'
+
+  /performance-evaluations:
+    post:
+      tags:
+        - Performance Evaluation
+      summary: إنشاء تقييم أداء
+      description: إنشاء تقييم أداء جديد للطالب
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - student_id
+                - session_id
+                - scores
+              properties:
+                student_id:
+                  type: integer
+                  example: 1
+                session_id:
+                  type: integer
+                  example: 1
+                scores:
+                  type: object
+                  required:
+                    - recitation
+                    - pronunciation
+                    - memorization
+                    - understanding
+                    - participation
+                  properties:
+                    recitation:
+                      type: number
+                      minimum: 0
+                      maximum: 10
+                      example: 8.5
+                    pronunciation:
+                      type: number
+                      minimum: 0
+                      maximum: 10
+                      example: 9.0
+                    memorization:
+                      type: number
+                      minimum: 0
+                      maximum: 10
+                      example: 7.5
+                    understanding:
+                      type: number
+                      minimum: 0
+                      maximum: 10
+                      example: 8.0
+                    participation:
+                      type: number
+                      minimum: 0
+                      maximum: 10
+                      example: 9.5
+                recommendations:
+                  type: string
+                  example: "تحسين في التلاوة والتركيز على التجويد"
+                improvement_areas:
+                  type: string
+                  example: "الحفظ والمراجعة"
+      responses:
+        '201':
+          description: تم إنشاء التقييم بنجاح
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceEvaluation'
+
+  /performance-evaluations/bulk:
+    post:
+      tags:
+        - Performance Evaluation
+      summary: إنشاء تقييمات متعددة
+      description: إنشاء تقييمات أداء متعددة في طلب واحد
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - session_id
+                - evaluations
+              properties:
+                session_id:
+                  type: integer
+                  example: 1
+                evaluations:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - student_id
+                      - scores
+                    properties:
+                      student_id:
+                        type: integer
+                        example: 1
+                      scores:
+                        type: object
+                        required:
+                          - recitation
+                          - pronunciation
+                          - memorization
+                          - understanding
+                          - participation
+                        properties:
+                          recitation:
+                            type: number
+                            minimum: 0
+                            maximum: 10
+                            example: 8.5
+                          pronunciation:
+                            type: number
+                            minimum: 0
+                            maximum: 10
+                            example: 9.0
+                          memorization:
+                            type: number
+                            minimum: 0
+                            maximum: 10
+                            example: 7.5
+                          understanding:
+                            type: number
+                            minimum: 0
+                            maximum: 10
+                            example: 8.0
+                          participation:
+                            type: number
+                            minimum: 0
+                            maximum: 10
+                            example: 9.5
+                      recommendations:
+                        type: string
+                        example: "تحسين في التلاوة"
+                      improvement_areas:
+                        type: string
+                        example: "الحفظ"
+      responses:
+        '201':
+          description: تم إنشاء التقييمات بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "تم إنشاء 5 تقييمات بنجاح"
+                  created_count:
+                    type: integer
+                    example: 5
+                  evaluations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PerformanceEvaluation'
+
+  /performance-evaluations/student/{studentId}/history:
+    get:
+      tags:
+        - Performance Evaluation
+      summary: تاريخ تقييمات الطالب
+      description: الحصول على تاريخ تقييمات الطالب مع المتوسطات
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          description: معرف الطالب
+          schema:
+            type: integer
+            example: 1
+        - name: period
+          in: query
+          description: الفترة الزمنية
+          required: false
+          schema:
+            type: string
+            enum: [week, month, semester]
+            example: "month"
+      responses:
+        '200':
+          description: تاريخ التقييمات
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  student_id:
+                    type: integer
+                    example: 1
+                  period:
+                    type: string
+                    example: "month"
+                  recent_evaluations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PerformanceEvaluation'
+                  averages:
+                    type: object
+                    properties:
+                      weekly:
+                        type: number
+                        example: 8.2
+                      monthly:
+                        type: number
+                        example: 8.5
+                      semester:
+                        type: number
+                        example: 8.3
+                  performance_trend:
+                    type: string
+                    enum: [improving, stable, declining]
+                    example: "improving"
+                  recommendations_summary:
+                    type: string
+                    example: "الأداء جيد بشكل عام، مع التركيز على الحفظ"
+
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: الحصول على الإشعارات
+      description: الحصول على إشعارات المستخدم الحالي
+      parameters:
+        - name: page
+          in: query
+          description: رقم الصفحة
+          required: false
+          schema:
+            type: integer
+            example: 1
+        - name: per_page
+          in: query
+          description: عدد الإشعارات في الصفحة
+          required: false
+          schema:
+            type: integer
+            example: 10
+      responses:
+        '200':
+          description: قائمة الإشعارات
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /notifications/{notificationId}/read:
+    patch:
+      tags:
+        - Notifications
+      summary: تحديد الإشعار كمقروء
+      description: تحديد إشعار معين كمقروء
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          description: معرف الإشعار
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: تم تحديد الإشعار كمقروء
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "تم تحديد الإشعار كمقروء"
+
+  /payments/student/{studentId}:
+    get:
+      tags:
+        - Payments
+      summary: الحصول على مدفوعات الطالب
+      description: الحصول على جميع مدفوعات طالب معين
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          description: معرف الطالب
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: قائمة المدفوعات
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  student_id:
+                    type: integer
+                    example: 1
+                  payments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+                  total_amount:
+                    type: number
+                    example: 500.00
+                  outstanding_amount:
+                    type: number
+                    example: 100.00
+
+  /payments/paypal/create-order:
+    post:
+      tags:
+        - Payments
+      summary: إنشاء طلب دفع PayPal
+      description: إنشاء طلب دفع جديد عبر PayPal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - student_id
+                - amount
+                - description
+              properties:
+                student_id:
+                  type: integer
+                  example: 1
+                amount:
+                  type: number
+                  example: 100.00
+                description:
+                  type: string
+                  example: "رسوم الفصل الدراسي"
+      responses:
+        '201':
+          description: تم إنشاء طلب الدفع
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order_id:
+                    type: string
+                    example: "PAYPAL_ORDER_123456"
+                  approval_url:
+                    type: string
+                    format: uri
+                    example: "https://www.paypal.com/checkoutnow?token=123456"
+                  payment_id:
+                    type: integer
+                    example: 1
+
+  /payments/paypal/capture:
+    post:
+      tags:
+        - Payments
+      summary: تأكيد دفع PayPal
+      description: تأكيد دفع PayPal بعد الموافقة
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - order_id
+                - payment_id
+              properties:
+                order_id:
+                  type: string
+                  example: "PAYPAL_ORDER_123456"
+                payment_id:
+                  type: integer
+                  example: 1
+      responses:
+        '200':
+          description: تم تأكيد الدفع بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "تم تأكيد الدفع بنجاح"
+                  payment:
+                    $ref: '#/components/schemas/Payment'
+
+  /weekday-schedules:
+    get:
+      tags:
+        - Weekday Schedules
+      summary: قائمة جداول الأسبوع
+      description: الحصول على جميع جداول الأسبوع المتاحة
+      responses:
+        '200':
+          description: قائمة جداول الأسبوع
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WeekdaySchedule'
+              example:
+                success: true
+                data:
+                  - id: 1
+                    name: "جدول الحلقات النسائية الافتراضي"
+                    description: "جدول افتراضي للحلقات النسائية من الأحد إلى الخميس"
+                    schedule:
+                      sunday:
+                        start_time: "07:00"
+                        end_time: "08:00"
+                        is_active: true
+                      monday:
+                        start_time: "07:00"
+                        end_time: "08:00"
+                        is_active: true
+                    is_active: true
+                    is_default: true
+                    created_at: "2025-10-06T15:00:00Z"
+
+    post:
+      tags:
+        - Weekday Schedules
+      summary: إنشاء جدول أسبوع جديد
+      description: إنشاء جدول أسبوع جديد
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WeekdayScheduleInput'
+            example:
+              name: "جدول المساء"
+              description: "جدول للحلقات المسائية"
+              schedule:
+                sunday:
+                  start_time: "18:00"
+                  end_time: "19:00"
+                  is_active: true
+                monday:
+                  start_time: "18:00"
+                  end_time: "19:00"
+                  is_active: true
+              is_active: true
+              is_default: false
+      responses:
+        '201':
+          description: تم إنشاء جدول الأسبوع بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "تم إنشاء جدول الأسبوع بنجاح"
+                  data:
+                    $ref: '#/components/schemas/WeekdaySchedule'
+
+  /weekday-schedules/{id}:
+    get:
+      tags:
+        - Weekday Schedules
+      summary: عرض جدول أسبوع محدد
+      description: الحصول على تفاصيل جدول أسبوع محدد
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: تفاصيل جدول الأسبوع
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/WeekdaySchedule'
+
+    put:
+      tags:
+        - Weekday Schedules
+      summary: تحديث جدول أسبوع
+      description: تحديث جدول أسبوع محدد
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WeekdayScheduleInput'
+      responses:
+        '200':
+          description: تم تحديث جدول الأسبوع بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "تم تحديث جدول الأسبوع بنجاح"
+                  data:
+                    $ref: '#/components/schemas/WeekdaySchedule'
+
+  /classes/{class_id}/task-assignments:
+    get:
+      tags:
+        - Class Task Assignments
+      summary: مهام الفصل الموكلة
+      description: الحصول على جميع المهام الموكلة لفصل محدد
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: قائمة مهام الفصل
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClassTaskAssignment'
+
+    post:
+      tags:
+        - Class Task Assignments
+      summary: إضافة مهمة للفصل
+      description: إضافة مهمة جديدة لفصل محدد
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassTaskAssignmentInput'
+            example:
+              daily_task_definition_id: 1
+              order: 1
+              is_active: true
+      responses:
+        '201':
+          description: تم إضافة المهمة للفصل بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "تم إضافة المهمة للفصل بنجاح"
+                  data:
+                    $ref: '#/components/schemas/ClassTaskAssignment'
+
+  /classes/{class_id}/task-assignments/{assignment_id}:
+    put:
+      tags:
+        - Class Task Assignments
+      summary: تحديث مهمة الفصل
+      description: تحديث مهمة محددة في فصل محدد
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassTaskAssignmentInput'
+      responses:
+        '200':
+          description: تم تحديث المهمة بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "تم تحديث المهمة بنجاح"
+                  data:
+                    $ref: '#/components/schemas/ClassTaskAssignment'
+
+    delete:
+      tags:
+        - Class Task Assignments
+      summary: حذف مهمة من الفصل
+      description: حذف مهمة محددة من فصل محدد
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: تم حذف المهمة بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "تم حذف المهمة بنجاح"
+
+  /subscriptions/{subscription_id}/billing:
+    post:
+      tags:
+        - Subscription Billing
+      summary: معالجة فاتورة الاشتراك
+      description: معالجة فاتورة جديدة للاشتراك
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_method:
+                  type: string
+                  enum: [paypal, fastlane_paypal, bank_transfer, cash]
+                  example: "paypal"
+                amount:
+                  type: number
+                  format: float
+                  example: 100.00
+            example:
+              payment_method: "paypal"
+              amount: 100.00
+      responses:
+        '200':
+          description: تم معالجة الفاتورة بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "تم معالجة الفاتورة بنجاح"
+                  data:
+                    type: object
+                    properties:
+                      payment_id:
+                        type: integer
+                        example: 1
+                      next_billing_date:
+                        type: string
+                        format: date
+                        example: "2025-11-06"
+
+  /subscriptions/{subscription_id}/cancel:
+    post:
+      tags:
+        - Subscription Billing
+      summary: إلغاء الاشتراك
+      description: إلغاء اشتراك محدد
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: "طلب الطالب"
+            example:
+              reason: "طلب الطالب"
+      responses:
+        '200':
+          description: تم إلغاء الاشتراك بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "تم إلغاء الاشتراك بنجاح"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "فاطمة أحمد"
+        email:
+          type: string
+          format: email
+          example: "fatima@hosoony.com"
+        role:
+          type: string
+          enum: [admin, teacher, student, sub_admin, teacher_support]
+          example: "student"
+        gender:
+          type: string
+          enum: [male, female]
+          example: "female"
+        class_id:
+          type: integer
+          nullable: true
+          example: 1
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T00:00:00Z"
+
+    PerformanceEvaluation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        student_id:
+          type: integer
+          example: 1
+        teacher_id:
+          type: integer
+          example: 2
+        session_id:
+          type: integer
+          example: 1
+        scores:
+          type: object
+          properties:
+            recitation:
+              type: number
+              example: 8.5
+            pronunciation:
+              type: number
+              example: 9.0
+            memorization:
+              type: number
+              example: 7.5
+            understanding:
+              type: number
+              example: 8.0
+            participation:
+              type: number
+              example: 9.5
+        total_score:
+          type: number
+          example: 42.5
+        performance_level:
+          type: string
+          enum: [excellent, good, average, needs_improvement]
+          example: "good"
+        recommendations:
+          type: string
+          example: "تحسين في التلاوة والتركيز على التجويد"
+        improvement_areas:
+          type: string
+          example: "الحفظ والمراجعة"
+        evaluation_date:
+          type: string
+          format: date-time
+          example: "2025-10-06T10:00:00Z"
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "رفيقات اليوم"
+        message:
+          type: string
+          example: "رفيقتك/رفيقاتك: عائشة — غرفة 1 — رابط Zoom https://zoom.us/j/123456789"
+        channel:
+          type: string
+          enum: [push, email, sms]
+          example: "push"
+        is_read:
+          type: boolean
+          example: false
+        sent_at:
+          type: string
+          format: date-time
+          example: "2025-10-06T23:59:00Z"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-06T23:59:00Z"
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        student_id:
+          type: integer
+          example: 1
+        amount:
+          type: number
+          example: 100.00
+        currency:
+          type: string
+          example: "SAR"
+        payment_method:
+          type: string
+          enum: [cash, bank_transfer, credit_card, online, paypal, fastlane_paypal]
+          example: "paypal"
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+          example: "completed"
+        description:
+          type: string
+          example: "رسوم الفصل الدراسي"
+        transaction_id:
+          type: string
+          nullable: true
+          example: "PAYPAL_TXN_123456"
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-10-06T15:30:00Z"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-06T15:00:00Z"
+
+    Pagination:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        last_page:
+          type: integer
+          example: 5
+        per_page:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 50
+        from:
+          type: integer
+          example: 1
+        to:
+          type: integer
+          example: 10
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "حدث خطأ في الطلب"
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email: ["حقل البريد الإلكتروني مطلوب"]
+            password: ["كلمة المرور يجب أن تكون 8 أحرف على الأقل"]
+
+    WeekdaySchedule:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "جدول الحلقات النسائية الافتراضي"
+        description:
+          type: string
+          example: "جدول افتراضي للحلقات النسائية من الأحد إلى الخميس"
+        schedule:
+          type: object
+          properties:
+            sunday:
+              type: object
+              properties:
+                start_time:
+                  type: string
+                  example: "07:00"
+                end_time:
+                  type: string
+                  example: "08:00"
+                is_active:
+                  type: boolean
+                  example: true
+            monday:
+              type: object
+              properties:
+                start_time:
+                  type: string
+                  example: "07:00"
+                end_time:
+                  type: string
+                  example: "08:00"
+                is_active:
+                  type: boolean
+                  example: true
+        is_active:
+          type: boolean
+          example: true
+        is_default:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-06T15:00:00Z"
+
+    WeekdayScheduleInput:
+      type: object
+      required:
+        - name
+        - schedule
+      properties:
+        name:
+          type: string
+          example: "جدول المساء"
+        description:
+          type: string
+          example: "جدول للحلقات المسائية"
+        schedule:
+          type: object
+          properties:
+            sunday:
+              type: object
+              properties:
+                start_time:
+                  type: string
+                  example: "18:00"
+                end_time:
+                  type: string
+                  example: "19:00"
+                is_active:
+                  type: boolean
+                  example: true
+            monday:
+              type: object
+              properties:
+                start_time:
+                  type: string
+                  example: "18:00"
+                end_time:
+                  type: string
+                  example: "19:00"
+                is_active:
+                  type: boolean
+                  example: true
+        is_active:
+          type: boolean
+          example: true
+        is_default:
+          type: boolean
+          example: false
+
+    ClassTaskAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        class_id:
+          type: integer
+          example: 1
+        daily_task_definition_id:
+          type: integer
+          example: 1
+        task_definition:
+          $ref: '#/components/schemas/DailyTaskDefinition'
+        order:
+          type: integer
+          example: 1
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-06T15:00:00Z"
+
+    ClassTaskAssignmentInput:
+      type: object
+      required:
+        - daily_task_definition_id
+      properties:
+        daily_task_definition_id:
+          type: integer
+          example: 1
+        order:
+          type: integer
+          example: 1
+        is_active:
+          type: boolean
+          example: true
+
+    DailyTaskDefinition:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "حفظ سورة الفاتحة"
+        description:
+          type: string
+          example: "حفظ سورة الفاتحة مع التجويد"
+        type:
+          type: string
+          enum: [hifz, murajaah, tilawah, tajweed, tafseer, other]
+          example: "hifz"
+        task_location:
+          type: string
+          enum: [in_class, homework]
+          example: "in_class"
+        points_weight:
+          type: integer
+          example: 5
+        duration_minutes:
+          type: integer
+          example: 30
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-06T15:00:00Z"
+
+tags:
+  - name: Authentication
+    description: عمليات المصادقة وتسجيل الدخول والخروج
+  - name: User
+    description: إدارة بيانات المستخدمين
+  - name: Companions
+    description: نظام الرفيقات والغرف الافتراضية
+  - name: Performance Evaluation
+    description: تقييم أداء الطلاب
+  - name: Notifications
+    description: نظام الإشعارات
+  - name: Payments
+    description: نظام المدفوعات والاشتراكات
+  - name: Weekday Schedules
+    description: إدارة جداول الأسبوع
+  - name: Class Task Assignments
+    description: إدارة مهام الفصول
+  - name: Subscription Billing
+    description: معالجة فواتير الاشتراكات

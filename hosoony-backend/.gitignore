@@ -1,0 +1,89 @@
+# Laravel Backend - Git Ignore
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+/storage/logs/*
+!/storage/logs/.gitkeep
+
+# Cache
+/storage/framework/cache/*
+!/storage/framework/cache/.gitkeep
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitkeep
+/storage/framework/views/*
+!/storage/framework/views/.gitkeep
+
+# Compiled assets
+/public/hot
+/public/storage
+/public/build
+/public/css/
+/public/js/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+/coverage/
+.phpunit.result.cache
+
+# Temporary files
+*.tmp
+*.temp
+
+# Database
+/database/database.sqlite
+
+# SDK generation (will be in separate repo)
+/sdk/
+
+# Flutter related (not needed in backend)
+/android/
+/ios/
+/lib/
+/pubspec.yaml
+/pubspec.lock
+/.dart_tool/
+/build/
+
+# Documentation (keep only essential)
+/docs/
+/documents/
+
+# Makefile (backend specific)
+Makefile
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

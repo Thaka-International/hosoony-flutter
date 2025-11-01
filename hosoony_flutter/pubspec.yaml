@@ -1,0 +1,99 @@
+name: hosoony_flutter
+description: تطبيق حصوني القرآني - نظام إدارة التعلم القرآني
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Navigation & Routing
+  go_router: ^12.1.3
+
+  # UI Components
+  cupertino_icons: ^1.0.6
+
+  # State Management
+  flutter_riverpod: ^2.4.0
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+
+  # Networking
+  dio: ^5.4.0
+  retrofit: ^4.0.3
+
+  # Local Storage & Offline
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Security
+  flutter_secure_storage: ^9.0.0
+
+  # Notifications (Mobile only)
+  firebase_core: ^4.2.0
+  firebase_messaging: ^16.0.3
+  flutter_local_notifications: ^19.5.0
+
+  # Deep Links
+  # uni_links: ^0.5.1  # Discontinued, using app_links instead
+
+  # Utilities
+  connectivity_plus: ^5.0.2
+  url_launcher: ^6.2.2
+  image_picker: ^1.0.7
+  image: ^4.1.3
+  webview_flutter: ^4.4.4
+  workmanager: ^0.9.0
+  shared_preferences: ^2.2.2
+  intl: ^0.20.2
+  logger: ^2.0.2+1
+  package_info_plus: ^4.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  
+  # Code Generation
+  build_runner: ^2.4.7
+  freezed: ^2.4.6
+  json_serializable: ^6.7.1
+  retrofit_generator: ^8.0.6
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  # Assets
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/translations/
+
+  # Fonts
+  fonts:
+    - family: Tajawal
+      fonts:
+        - asset: assets/fonts/Tajawal-Regular.ttf
+        - asset: assets/fonts/Tajawal-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Tajawal-Light.ttf
+          weight: 300
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Regular.ttf
+        - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700

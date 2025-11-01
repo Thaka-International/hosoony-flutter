@@ -1,0 +1,29 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/thme/public_html
+
+    # اسحب التغييرات إلى working tree الخاص بالريبو الداخلي في cPanel
+    - /bin/git --work-tree=$PWD --git-dir=.git pull --ff-only origin production
+
+    # انسخ المجلد كاملاً إلى public_html (مع حذف الملفات الزائدة)
+    - /bin/rsync -a --delete --exclude=".git" --exclude=".cpanel" --exclude="node_modules" --exclude="storage/logs" --exclude="vendor" ./ $DEPLOYPATH/
+
+    # تثبيت dependencies إذا لزم
+    - cd $DEPLOYPATH && /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
+
+    # أوامر Laravel بعد النسخ (عدّل مسار php إن لزم)
+    - /usr/local/bin/php -d detect_unicode=0 $DEPLOYPATH/artisan optimize:clear
+    - /usr/local/bin/php $DEPLOYPATH/artisan config:cache
+    - /usr/local/bin/php $DEPLOYPATH/artisan route:cache
+    - /usr/local/bin/php $DEPLOYPATH/artisan view:cache
+    
+    # إصلاح صلاحيات المجلدات
+    - chmod -R 755 $DEPLOYPATH/storage
+    - chmod -R 755 $DEPLOYPATH/bootstrap/cache
+    
+    # تشغيل الإصلاح السريع للمهام (إذا كان موجود)
+    - if [ -f "$DEPLOYPATH/fix_student_tasks_production.php" ]; then /usr/local/bin/php $DEPLOYPATH/fix_student_tasks_production.php; fi
+
+    # تسجيل نجاح النشر
+    - echo "✅ تم النشر بنجاح في $(date)" >> $DEPLOYPATH/deployment.log
