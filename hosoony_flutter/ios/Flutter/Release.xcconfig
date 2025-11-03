@@ -1,2 +1,9 @@
 #include "Generated.xcconfig"
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"
+
+// إخفاء تحذيرات deprecation و warnings
+GCC_WARN_INHIBIT_ALL_WARNINGS = YES
+CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO
+CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = NO
+SWIFT_SUPPRESS_WARNINGS = YES

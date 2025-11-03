@@ -9,8 +9,13 @@ import UserNotifications
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Initialize Firebase
-    FirebaseApp.configure()
+    // Initialize Firebase (only if GoogleService-Info.plist exists)
+    if let filePath = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+       FileManager.default.fileExists(atPath: filePath) {
+      FirebaseApp.configure()
+    } else {
+      print("⚠️ GoogleService-Info.plist not found. Firebase will not be initialized.")
+    }
     
     // Register for remote notifications
     if #available(iOS 10.0, *) {
