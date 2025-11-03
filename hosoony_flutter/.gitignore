@@ -66,6 +66,11 @@ android/app/*.apk
 android/app/*.aab
 android/build/
 
+# Android keystore files (IMPORTANT: Never commit these!)
+android/keystore/
+android/key.properties
+!android/key.properties.template
+
 # iOS build outputs
 ios/build/
 ios/DerivedData/

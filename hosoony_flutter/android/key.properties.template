@@ -1,0 +1,6 @@
+storePassword=your-keystore-password-here
+keyPassword=your-key-password-here
+keyAlias=hosoony-release-key
+storeFile=../keystore/hosoony-release-key.jks
+
+
