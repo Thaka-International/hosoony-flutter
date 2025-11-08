@@ -19,6 +19,38 @@ class ApiService {
       },
     ));
 
+    // Retry interceptor for network errors (DNS, connection, timeout)
+    _dio.interceptors.add(InterceptorsWrapper(
+      onError: (error, handler) async {
+        // Retry logic for network errors
+        if (_shouldRetry(error)) {
+          final retryCount = error.requestOptions.extra['retryCount'] ?? 0;
+          const maxRetries = 3;
+          const retryDelay = Duration(seconds: 2);
+
+          if (retryCount < maxRetries) {
+            error.requestOptions.extra['retryCount'] = retryCount + 1;
+            
+            DebugService.info(
+              '[API] Retrying request (${retryCount + 1}/$maxRetries) after ${retryDelay.inSeconds}s delay',
+            );
+            
+            await Future.delayed(retryDelay);
+            
+            try {
+              final response = await _dio.fetch(error.requestOptions);
+              handler.resolve(response);
+              return;
+            } catch (e) {
+              // If retry also fails, continue with error
+            }
+          }
+        }
+        
+        handler.next(error);
+      },
+    ));
+
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         if (_token != null) {
@@ -49,6 +81,28 @@ class ApiService {
         handler.next(error);
       },
     ));
+  }
+
+  /// Check if error should be retried
+  static bool _shouldRetry(DioException error) {
+    // Retry on connection errors (DNS, network, timeout)
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
+      return true;
+    }
+    
+    // Retry on specific error messages
+    final errorMessage = error.message?.toLowerCase() ?? '';
+    if (errorMessage.contains('failed host lookup') ||
+        errorMessage.contains('socketexception') ||
+        errorMessage.contains('network is unreachable') ||
+        errorMessage.contains('no address associated with hostname')) {
+      return true;
+    }
+    
+    return false;
   }
 
   static void setToken(String token) {
