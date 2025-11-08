@@ -79,6 +79,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     _loadRememberedCredentials();
   }
 
+
   @override
   void dispose() {
     _cardAnimationController.dispose();
@@ -140,15 +141,23 @@ class _LoginPageState extends ConsumerState<LoginPage>
         }
       } else {
         await authNotifier.login(
-          _emailController.text,
+          _emailController.text.trim(), // Trim whitespace including leading dot
           _passwordController.text,
           rememberMe: _rememberMe,
         );
       }
 
+      // Check auth state after login
       if (mounted) {
         final authState = ref.read(authStateProvider);
+        
         if (authState.isAuthenticated && authState.user != null) {
+          // Set token in ApiService if not already set
+          if (authState.token != null) {
+            ApiService.setToken(authState.token!);
+          }
+          
+          // Navigate based on user role
           switch (authState.user!.role) {
             case 'student':
               context.go('/student/home');
@@ -165,6 +174,14 @@ class _LoginPageState extends ConsumerState<LoginPage>
             default:
               context.go('/student/home');
           }
+        } else if (authState.error != null) {
+          // Show error if login failed
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authState.error!),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       }
     } catch (e) {
