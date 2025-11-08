@@ -31,7 +31,7 @@ class HosoonyApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: Env.appName,
-      debugShowCheckedModeBanner: Env.isDebugMode,
+      debugShowCheckedModeBanner: false, // Always false for production - no debug banners
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
