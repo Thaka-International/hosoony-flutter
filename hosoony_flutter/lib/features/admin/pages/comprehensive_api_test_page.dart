@@ -57,8 +57,9 @@ class _ComprehensiveApiTestPageState extends ConsumerState<ComprehensiveApiTestP
     // اختبار APIs الرفيقات
     await _testCompanionsApis();
     
+    // DISABLED: App is free, no payments
     // اختبار APIs المدفوعات
-    await _testPaymentsApis();
+    // await _testPaymentsApis();
     
     // اختبار APIs التقارير
     await _testReportsApis();
@@ -182,44 +183,45 @@ class _ComprehensiveApiTestPageState extends ConsumerState<ComprehensiveApiTestP
     );
   }
 
-  Future<void> _testPaymentsApis() async {
-    DebugService.info('اختبار APIs المدفوعات', 'API_TEST');
-    
-    // اختبار الحصول على الاشتراك
-    await _testApi(
-      'GET /students/1/subscription',
-      () => _dio.get('/students/1/subscription'),
-      'الحصول على الاشتراك'
-    );
-
-    // اختبار تحديث الاشتراك
-    await _testApi(
-      'PATCH /students/1/subscription',
-      () => _dio.patch('/students/1/subscription', data: {
-        'plan': 'premium',
-        'status': 'active'
-      }),
-      'تحديث الاشتراك'
-    );
-
-    // اختبار إنشاء دفعة
-    await _testApi(
-      'POST /students/1/payments',
-      () => _dio.post('/students/1/payments', data: {
-        'amount': 100.0,
-        'method': 'bank_transfer',
-        'description': 'دفعة شهرية'
-      }),
-      'إنشاء دفعة'
-    );
-
-    // اختبار الحصول على دفعات الطالب
-    await _testApi(
-      'GET /students/1/payments',
-      () => _dio.get('/students/1/payments'),
-      'الحصول على دفعات الطالب'
-    );
-  }
+  // DISABLED: App is free, no payments
+  // Future<void> _testPaymentsApis() async {
+  //   DebugService.info('اختبار APIs المدفوعات', 'API_TEST');
+  //   
+  //   // اختبار الحصول على الاشتراك
+  //   await _testApi(
+  //     'GET /students/1/subscription',
+  //     () => _dio.get('/students/1/subscription'),
+  //     'الحصول على الاشتراك'
+  //   );
+  //
+  //   // اختبار تحديث الاشتراك
+  //   await _testApi(
+  //     'PATCH /students/1/subscription',
+  //     () => _dio.patch('/students/1/subscription', data: {
+  //       'plan': 'premium',
+  //       'status': 'active'
+  //     }),
+  //     'تحديث الاشتراك'
+  //   );
+  //
+  //   // اختبار إنشاء دفعة
+  //   await _testApi(
+  //     'POST /students/1/payments',
+  //     () => _dio.post('/students/1/payments', data: {
+  //       'amount': 100.0,
+  //       'method': 'bank_transfer',
+  //       'description': 'دفعة شهرية'
+  //     }),
+  //     'إنشاء دفعة'
+  //   );
+  //
+  //   // اختبار الحصول على دفعات الطالب
+  //   await _testApi(
+  //     'GET /students/1/payments',
+  //     () => _dio.get('/students/1/payments'),
+  //     'الحصول على دفعات الطالب'
+  //   );
+  // }
 
   Future<void> _testReportsApis() async {
     DebugService.info('اختبار APIs التقارير', 'API_TEST');

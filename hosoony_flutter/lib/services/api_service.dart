@@ -257,10 +257,11 @@ class ApiService {
     return response.data;
   }
 
-  static Future<List<Map<String, dynamic>>> getStudentPayments(String studentId) async {
-    final response = await _dio.get('/students/$studentId/payments');
-    return List<Map<String, dynamic>>.from(response.data['data'] ?? []);
-  }
+  // DISABLED: App is free, no payments
+  // static Future<List<Map<String, dynamic>>> getStudentPayments(String studentId) async {
+  //   final response = await _dio.get('/students/$studentId/payments');
+  //   return List<Map<String, dynamic>>.from(response.data['data'] ?? []);
+  // }
 
   // Attendance APIs
   static Future<Map<String, dynamic>> checkIn(String date, String time) async {

@@ -114,7 +114,7 @@ class _AdvancedReportsPageState extends ConsumerState<AdvancedReportsPage>
               'total_revenue': 7500.0,
               'total_expenses': 3200.0,
               'net_profit': 4300.0,
-              'subscription_revenue': 6000.0,
+              // 'subscription_revenue': 6000.0, // DISABLED: App is free, no payments
               'additional_revenue': 1500.0,
             },
             'charts': ['bar', 'line', 'area'],
@@ -177,10 +177,11 @@ class _AdvancedReportsPageState extends ConsumerState<AdvancedReportsPage>
             'created_at': '2024-01-10',
             'status': 'completed',
             'data': {
-              'total_payments': 150,
-              'successful_payments': 142,
-              'failed_payments': 8,
-              'pending_payments': 5,
+              // DISABLED: App is free, no payments
+              // 'total_payments': 150,
+              // 'successful_payments': 142,
+              // 'failed_payments': 8,
+              // 'pending_payments': 5,
               'total_amount': 7500.0,
             },
             'charts': ['pie', 'bar'],
@@ -733,7 +734,8 @@ class _AdvancedReportsPageState extends ConsumerState<AdvancedReportsPage>
             Row(
               children: [
                 Expanded(child: _buildSummaryItem('صافي الربح', '${data['net_profit']} SAR')),
-                Expanded(child: _buildSummaryItem('إيرادات الاشتراكات', '${data['subscription_revenue']} SAR')),
+                // DISABLED: App is free, no payments
+                // Expanded(child: _buildSummaryItem('إيرادات الاشتراكات', '${data['subscription_revenue']} SAR')),
               ],
             ),
           ],

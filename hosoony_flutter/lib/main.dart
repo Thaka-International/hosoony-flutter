@@ -12,12 +12,15 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Firebase only on mobile platforms
+  // Firebase will be initialized automatically from native code if config files exist
   if (!kIsWeb) {
     try {
       await Firebase.initializeApp();
-      debugPrint('Firebase initialized successfully');
+      debugPrint('✅ Firebase initialized successfully');
     } catch (e) {
-      debugPrint('Firebase initialization failed: $e');
+      // If Firebase config is missing, app will continue without Firebase
+      debugPrint('⚠️ Firebase initialization skipped: $e');
+      debugPrint('   App will continue without Firebase features');
     }
   }
 
@@ -46,7 +49,7 @@ class HosoonyApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: Env.appName,
-      debugShowCheckedModeBanner: Env.isDebugMode,
+      debugShowCheckedModeBanner: false, // Always false for production - no debug banners in screenshots
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,

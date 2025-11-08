@@ -159,7 +159,8 @@ class _ComprehensiveTestPageState extends ConsumerState<ComprehensiveTestPage> {
                   [
                     _buildTestButton('اختبار العمليات', _testOperations, AppTokens.primaryBrown),
                     _buildTestButton('اختبار التقارير', _testReports, AppTokens.primaryGold),
-                    _buildTestButton('اختبار المدفوعات', _testPayments, AppTokens.primaryGreen),
+                    // DISABLED: App is free, no payments
+                    // _buildTestButton('اختبار المدفوعات', _testPayments, AppTokens.primaryGreen),
                   ],
                 ),
                 
@@ -389,12 +390,13 @@ class _ComprehensiveTestPageState extends ConsumerState<ComprehensiveTestPage> {
     });
   }
 
-  Future<void> _testPayments() async {
-    await _runTest('المدفوعات', () async {
-      final payments = await ApiService.getStudentPayments('1');
-      return true; // Always true for testing
-    });
-  }
+  // DISABLED: App is free, no payments
+  // Future<void> _testPayments() async {
+  //   await _runTest('المدفوعات', () async {
+  //     final payments = await ApiService.getStudentPayments('1');
+  //     return true; // Always true for testing
+  //   });
+  // }
 
   Future<void> _runTest(String testName, Future<bool> Function() testFunction) async {
     setState(() {
@@ -446,7 +448,7 @@ class _ComprehensiveTestPageState extends ConsumerState<ComprehensiveTestPage> {
       _testPerformance,
       _testOperations,
       _testReports,
-      _testPayments,
+      // _testPayments, // DISABLED: App is free, no payments
     ];
 
     for (final test in tests) {
