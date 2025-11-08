@@ -23,6 +23,7 @@ class ApiService {
     _dio.interceptors.add(InterceptorsWrapper(
       onError: (error, handler) async {
         // Retry logic for network errors
+        // Note: error is always DioException in Dio interceptors
         if (_shouldRetry(error)) {
           final retryCount = error.requestOptions.extra['retryCount'] ?? 0;
           const maxRetries = 3;
@@ -43,6 +44,11 @@ class ApiService {
               return;
             } catch (e) {
               // If retry also fails, continue with error
+              if (e is DioException) {
+                // Update error with new exception if it's also a DioException
+                handler.next(e);
+                return;
+              }
             }
           }
         }
