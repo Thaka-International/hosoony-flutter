@@ -56,7 +56,9 @@ android {
                 // Fallback to debug signing if key.properties doesn't exist
                 signingConfig = signingConfigs.getByName("debug")
             }
-            isMinifyEnabled = false
+            // Enable R8/ProGuard for code obfuscation and size reduction
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
