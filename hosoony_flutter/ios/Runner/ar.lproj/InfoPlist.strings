@@ -1,0 +1,21 @@
+/* 
+  InfoPlist.strings
+  حصوني القرآني
+
+  Created for Arabic localization
+*/
+
+/* App Display Name */
+"CFBundleDisplayName" = "حصوني القرآني";
+"CFBundleName" = "حصوني القرآني";
+
+/* Camera Permission */
+"NSCameraUsageDescription" = "نحتاج للوصول إلى الكاميرا لالتقاط صور المهام اليومية";
+
+/* Photo Library Permission */
+"NSPhotoLibraryUsageDescription" = "نحتاج للوصول إلى الصور لاختيار صور المهام اليومية";
+"NSPhotoLibraryAddUsageDescription" = "نحتاج لحفظ الصور في المكتبة";
+
+/* Microphone Permission */
+"NSMicrophoneUsageDescription" = "نحتاج للوصول إلى الميكروفون لتسجيل الصوت";
+

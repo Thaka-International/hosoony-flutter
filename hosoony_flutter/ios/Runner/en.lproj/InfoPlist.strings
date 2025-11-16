@@ -1,0 +1,21 @@
+/* 
+  InfoPlist.strings
+  Hosoony Al-Qurani
+
+  Created for English localization
+*/
+
+/* App Display Name */
+"CFBundleDisplayName" = "Hosoony Al-Qurani";
+"CFBundleName" = "Hosoony Al-Qurani";
+
+/* Camera Permission */
+"NSCameraUsageDescription" = "We need access to the camera to capture daily task photos";
+
+/* Photo Library Permission */
+"NSPhotoLibraryUsageDescription" = "We need access to photos to select daily task images";
+"NSPhotoLibraryAddUsageDescription" = "We need to save photos to the library";
+
+/* Microphone Permission */
+"NSMicrophoneUsageDescription" = "We need access to the microphone to record audio";
+
