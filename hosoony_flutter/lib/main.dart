@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/debug/debug_service.dart';
 import 'services/api_service.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +47,13 @@ class HosoonyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    final authNotifier = ref.read(authStateProvider.notifier);
+
+    // Set callback for account inactive errors
+    ApiService.setAccountInactiveCallback(() {
+      // Logout user automatically when account is inactive
+      authNotifier.logout();
+    });
 
     return MaterialApp.router(
       title: Env.appName,

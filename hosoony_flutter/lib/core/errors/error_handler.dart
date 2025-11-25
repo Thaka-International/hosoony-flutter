@@ -64,9 +64,20 @@ class ErrorHandler {
       
       // If we found a message, return it
       if (message != null && message.isNotEmpty) {
+        final errorCode = responseData['error_code']?.toString();
+        
+        // Check for ACCOUNT_INACTIVE error code
+        if (errorCode == 'ACCOUNT_INACTIVE') {
+          return AppError(
+            message: message,
+            code: 'ACCOUNT_INACTIVE',
+            statusCode: error.response?.statusCode,
+          );
+        }
+        
         return AppError(
           message: message,
-          code: responseData['error_code']?.toString() ?? 
+          code: errorCode ?? 
                 (error.response?.statusCode == 422 ? 'VALIDATION_ERROR' : 
                  error.response?.statusCode == 401 || error.response?.statusCode == 403 ? 'AUTH_ERROR' : 
                  'API_ERROR'),

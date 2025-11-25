@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import '../core/config/env.dart';
 import '../core/debug/debug_service.dart';
 
@@ -6,6 +7,7 @@ class ApiService {
   static const String baseUrl = Env.baseUrl;
   static String? _token;
   static late Dio _dio;
+  static VoidCallback? _onAccountInactive;
 
   static void initialize() {
     _dio = Dio(BaseOptions(
@@ -84,6 +86,19 @@ class ApiService {
           '${error.requestOptions.baseUrl}${error.requestOptions.path}',
           error,
         );
+        
+        // Handle ACCOUNT_INACTIVE error - logout user automatically
+        if (error.response?.statusCode == 403) {
+          final responseData = error.response?.data;
+          if (responseData is Map<String, dynamic>) {
+            final errorCode = responseData['error_code']?.toString();
+            if (errorCode == 'ACCOUNT_INACTIVE') {
+              // Logout user automatically
+              _handleAccountInactive();
+            }
+          }
+        }
+        
         handler.next(error);
       },
     ));
@@ -121,6 +136,20 @@ class ApiService {
 
   static void clearToken() {
     _token = null;
+  }
+
+  /// Set callback to handle account inactive errors
+  static void setAccountInactiveCallback(VoidCallback? callback) {
+    _onAccountInactive = callback;
+  }
+
+  /// Handle account inactive error - logout user automatically
+  static void _handleAccountInactive() {
+    // Clear token immediately
+    clearToken();
+    
+    // Call callback if set (should logout user via AuthNotifier)
+    _onAccountInactive?.call();
   }
 
   static Future<Map<String, dynamic>> login(String email, String password) async {
