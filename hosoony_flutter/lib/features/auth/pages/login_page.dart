@@ -77,55 +77,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
     _logoAnimationController.forward();
     
     _loadRememberedCredentials();
-    
-    // Listen to auth state changes after first build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.listen<AuthState>(authStateProvider, (previous, next) {
-        if (!mounted) return;
-        
-        // Handle successful login
-        if (next.isAuthenticated && next.user != null && previous?.isAuthenticated != true) {
-          // Set token in ApiService if not already set
-          if (next.token != null) {
-            ApiService.setToken(next.token!);
-          }
-          
-          // Navigate based on user role
-          switch (next.user!.role) {
-            case 'student':
-              context.go('/student/home');
-              break;
-            case 'teacher':
-              context.go('/teacher/home');
-              break;
-            case 'assistant':
-              context.go('/support/home');
-              break;
-            case 'admin':
-              context.go('/admin/home');
-              break;
-            default:
-              context.go('/student/home');
-          }
-        }
-        
-        // Handle login errors
-        if (next.error != null && previous?.error != next.error && !next.isAuthenticated) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(next.error!),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-          }
-        }
-      });
-    });
   }
 
 
@@ -227,6 +178,53 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   @override
   Widget build(BuildContext context) {
+    // Listen to auth state changes (must be in build method)
+    ref.listen<AuthState>(authStateProvider, (previous, next) {
+      if (!mounted) return;
+      
+      // Handle successful login
+      if (next.isAuthenticated && next.user != null && previous?.isAuthenticated != true) {
+        // Set token in ApiService if not already set
+        if (next.token != null) {
+          ApiService.setToken(next.token!);
+        }
+        
+        // Navigate based on user role
+        switch (next.user!.role) {
+          case 'student':
+            context.go('/student/home');
+            break;
+          case 'teacher':
+            context.go('/teacher/home');
+            break;
+          case 'assistant':
+            context.go('/support/home');
+            break;
+          case 'admin':
+            context.go('/admin/home');
+            break;
+          default:
+            context.go('/student/home');
+        }
+      }
+      
+      // Handle login errors
+      if (next.error != null && previous?.error != next.error && !next.isAuthenticated) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    });
+    
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -277,7 +275,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             ),
                           ),
                           const Text(
-                            'تطبيق الحفظ المتقن',
+                            'نظام إدارة التعلم القرآني',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 16,
