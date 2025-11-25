@@ -50,8 +50,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     
     try {
       final authState = await AuthService.login(email, password, rememberMe: rememberMe);
-      state = authState;
-      DebugService.success('Login successful', 'AUTH');
+      
+      // Only update state if login was successful (no error)
+      if (authState.isAuthenticated && authState.error == null) {
+        state = authState;
+        DebugService.success('Login successful', 'AUTH');
+      } else {
+        // Login failed, show error
+        state = state.copyWith(
+          isLoading: false,
+          error: authState.error ?? 'فشل تسجيل الدخول',
+        );
+        DebugService.error('Login failed', authState.error, null, 'AUTH');
+      }
     } catch (e) {
       final error = ErrorHandler.handleError(e);
       DebugService.error('Login failed', e, null, 'AUTH');
