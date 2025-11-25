@@ -261,10 +261,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(60),
                             ),
-                            child: const Icon(
-                              Icons.school,
-                              size: 60,
-                              color: Colors.white,
+                            padding: const EdgeInsets.all(20),
+                            child: Image.asset(
+                              'assets/images/hosoony-logo.png',
+                              fit: BoxFit.contain,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -277,7 +277,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             ),
                           ),
                           const Text(
-                            'منصة التعليم الذكي',
+                            'تطبيق الحفظ المتقن',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 16,
