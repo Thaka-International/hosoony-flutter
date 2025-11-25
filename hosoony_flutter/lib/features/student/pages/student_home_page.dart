@@ -1001,8 +1001,10 @@ class _StudentHomePageState extends ConsumerState<StudentHomePage>
             onSelected: (value) async {
               switch (value) {
                 case 'logout':
-                  ref.read(authStateProvider.notifier).logout();
-                  context.go('/login');
+                  await ref.read(authStateProvider.notifier).logout();
+                  if (context.mounted) {
+                    context.go('/login');
+                  }
                   break;
                 case 'clear_data':
                   await _showClearDataDialog(context);
