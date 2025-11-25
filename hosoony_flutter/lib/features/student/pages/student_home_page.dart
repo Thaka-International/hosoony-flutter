@@ -956,7 +956,7 @@ class _StudentHomePageState extends ConsumerState<StudentHomePage>
     if (result == true) {
       try {
         await AuthService.clearAllStoredData();
-        ref.read(authStateProvider.notifier).logout();
+        await ref.read(authStateProvider.notifier).logout();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
