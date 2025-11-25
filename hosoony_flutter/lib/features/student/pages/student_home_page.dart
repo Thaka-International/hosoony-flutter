@@ -163,6 +163,18 @@ class _StudentHomePageState extends ConsumerState<StudentHomePage>
         setState(() {});
       }
     } catch (e) {
+      // Handle ACCOUNT_INACTIVE error - don't show error, logout will handle it
+      final error = ErrorHandler.handleError(e);
+      if (error.code == 'ACCOUNT_INACTIVE') {
+        // Logout is handled automatically by ApiService interceptor
+        // Just stop loading and clear tasks
+        setState(() {
+          _dailyTasks = [];
+          _isLoadingTasks = false;
+        });
+        return;
+      }
+      
       // تسجيل الخطأ ولكن لا نوقف التطبيق
       print('خطأ في تحميل المهام اليومية: $e');
       setState(() {
@@ -189,6 +201,18 @@ class _StudentHomePageState extends ConsumerState<StudentHomePage>
         _isLoadingCompanions = false;
       });
     } catch (e) {
+      // Handle ACCOUNT_INACTIVE error - don't show error, logout will handle it
+      final error = ErrorHandler.handleError(e);
+      if (error.code == 'ACCOUNT_INACTIVE') {
+        // Logout is handled automatically by ApiService interceptor
+        // Just stop loading and clear companions
+        setState(() {
+          _companions = [];
+          _isLoadingCompanions = false;
+        });
+        return;
+      }
+      
       // تسجيل الخطأ ولكن لا نوقف التطبيق
       print('خطأ في تحميل الرفيقات: $e');
       setState(() {
