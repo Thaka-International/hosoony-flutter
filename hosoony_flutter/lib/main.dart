@@ -66,9 +66,7 @@ class HosoonyApp extends ConsumerWidget {
       // If user was logged in and now is not, navigate to login
       if (previous?.isAuthenticated == true && !next.isAuthenticated) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (router.canPop()) {
-            router.go('/login');
-          }
+          router.go('/login');
         });
       }
     });
