@@ -658,6 +658,7 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
       'id': task['task_id'], // Required by controller validation (definition ID)
       'task_key': task['task_key'], // Required by submitWebDailyLog service (for lookup)
       'class_task_assignment_id': task['class_task_assignment_id'], // ⭐ للربط بـ weekly_task_schedule
+      'temporary_task_id': task['temporary_task_id'], // ⭐ للربط بالمهمة المؤقتة (إن وجدت)
       'status': 'completed',
       'completed': true, // Service checks item['completed']
       'notes': null,
