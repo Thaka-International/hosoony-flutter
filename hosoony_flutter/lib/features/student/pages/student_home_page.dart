@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../services/api_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../shared_ui/widgets/copyright_widget.dart';
