@@ -53,6 +53,24 @@ class HosoonyApp extends ConsumerWidget {
     ApiService.setAccountInactiveCallback(() {
       // Logout user automatically when account is inactive
       authNotifier.logout();
+      
+      // Navigate to login page after logout
+      // Use a post-frame callback to ensure navigation happens after state update
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        router.go('/login');
+      });
+    });
+    
+    // Listen to auth state changes to handle logout navigation
+    ref.listen<AuthState>(authStateProvider, (previous, next) {
+      // If user was logged in and now is not, navigate to login
+      if (previous?.isAuthenticated == true && !next.isAuthenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (router.canPop()) {
+            router.go('/login');
+          }
+        });
+      }
     });
 
     return MaterialApp.router(
