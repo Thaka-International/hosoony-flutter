@@ -35,7 +35,6 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
   String? _logDate; // Store the log date
   int? _classId; // Store the class ID
   bool _hasCheckedAttendance = false; // Track if attendance was checked for first task
-  Map<String, dynamic>? _companionData; // Store companion data for evaluation
 
   @override
   void initState() {
@@ -297,9 +296,6 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
       }
     }
     
-    final task = _dailyTasks[index];
-    final duration = task['duration_minutes'] ?? 20;
-    
     setState(() {
       _activeTasks[index] = true;
       _taskStartTime[index] = DateTime.now();
@@ -320,9 +316,7 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
   }
 
   void _showCompleteDialog(int index) {
-    final task = _dailyTasks[index];
     final elapsedSeconds = _taskElapsedSeconds[index] ?? 0;
-    final minutesSpent = elapsedSeconds ~/ 60;
     
     showDialog(
       context: context,
@@ -388,8 +382,6 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
 
   Future<void> _completeTask(int index) async {
     final task = _dailyTasks[index];
-    final taskKey = task['task_key'];
-    final startTime = _taskStartTime[index];
     final elapsedSeconds = _taskElapsedSeconds[index] ?? 0;
     final duration = elapsedSeconds ~/ 60;
     
@@ -457,76 +449,26 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
         final allTasksCompleted = _dailyTasks.every((task) => task['completed'] == true);
         
         if (allTasksCompleted) {
-          // Wait a bit before navigating to evaluation
-          await Future.delayed(const Duration(seconds: 2));
-          
-          // Load companion data for evaluation
-          try {
-            final companionsResponse = await ApiService.getMyCompanions();
-            print('Companions response: $companionsResponse');
-            
-            if (companionsResponse['success'] == true && 
-                (companionsResponse['companions'] as List).isNotEmpty) {
-              final companions = companionsResponse['companions'] as List;
-              final sessionId = companionsResponse['session_id'];
-              
-              print('Found ${companions.length} companion(s), session_id: $sessionId');
-              
-              // Use first companion for evaluation
-              final companion = companions.first as Map<String, dynamic>;
-              print('Companion data: $companion');
-              print('Companion ID: ${companion['id']}');
-              
-              if (companion['id'] != null && sessionId != null) {
-                if (mounted) {
-                  // Ensure companion has id as int or string
-                  final companionData = {
-                    'id': companion['id'] is int ? companion['id'] : int.tryParse(companion['id'].toString()) ?? companion['id'],
-                    'name': companion['name'] ?? 'الرفيقة',
-                  };
-                  
-                  final companionJson = Uri.encodeComponent(jsonEncode(companionData));
-                  final finalSessionId = sessionId.toString();
-                  
-                  print('Navigating to evaluation with session_id: $finalSessionId, companion: $companionData');
-                  
-                  context.go('/student/home/companion-evaluation?session_id=$finalSessionId&companion=$companionJson');
-                }
-              } else {
-                print('Invalid companion data - missing id or session_id');
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('لا يمكن تقييم الرفيقة: بيانات غير مكتملة'),
-                      backgroundColor: AppTokens.warningOrange,
+          // Show completion message and stay on the page
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text('تم إكمال جميع المهام بنجاح! يمكنك تقييم الرفيقة من القائمة الرئيسية'),
                     ),
-                  );
-                  _loadDailyTasks();
-                }
-              }
-            } else {
-              print('No companions available for evaluation');
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('لا توجد رفيقات متاحة للتقييم'),
-                    backgroundColor: AppTokens.infoBlue,
-                  ),
-                );
-                _loadDailyTasks();
-              }
-            }
-          } catch (e) {
-            print('Error loading companion data: $e');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('خطأ في تحميل بيانات الرفيقة: $e'),
-                  backgroundColor: AppTokens.errorRed,
+                  ],
                 ),
-              );
-              _loadDailyTasks();
-            }
+                backgroundColor: AppTokens.successGreen,
+                duration: Duration(seconds: 4),
+              ),
+            );
+            
+            // Refresh tasks to show updated status
+            _loadDailyTasks();
           }
         } else {
           // Not all tasks completed - find next uncompleted task and open it
