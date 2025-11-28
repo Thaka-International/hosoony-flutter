@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../core/config/env.dart';
@@ -64,6 +65,51 @@ class ApiService {
         if (_token != null) {
           options.headers['Authorization'] = 'Bearer $_token';
         }
+        
+        // Normalize exam answers to ensure answer_text is always string
+        // This interceptor runs BEFORE JSON serialization, so we can force string type
+        if (options.data is Map<String, dynamic>) {
+          final data = options.data as Map<String, dynamic>;
+          if (data.containsKey('answers') && data['answers'] is List) {
+            final answers = data['answers'] as List;
+            final normalizedAnswers = answers.map((answer) {
+              if (answer is Map<String, dynamic>) {
+                final normalized = <String, dynamic>{};
+                normalized['question_id'] = answer['question_id'];
+                
+                // Force answer_text to be string - use JSON encoding trick to preserve string type
+                if (answer.containsKey('answer_text') && answer['answer_text'] != null) {
+                  final textValue = answer['answer_text'];
+                  // Always convert to string, even if it's 0
+                  if (textValue is String) {
+                    normalized['answer_text'] = textValue;
+                  } else {
+                    // Convert to string explicitly
+                    final strValue = textValue.toString();
+                    // Use JSON encoding/decoding to force string type preservation
+                    // This prevents Dio from converting "0" back to 0
+                    final jsonEncoded = jsonEncode(strValue);
+                    normalized['answer_text'] = jsonDecode(jsonEncoded) as String;
+                  }
+                } else {
+                  normalized['answer_text'] = null;
+                }
+                
+                // Handle answer_boolean
+                if (answer.containsKey('answer_boolean')) {
+                  normalized['answer_boolean'] = answer['answer_boolean'];
+                }
+                
+                return normalized;
+              }
+              return answer;
+            }).toList();
+            data['answers'] = normalizedAnswers;
+            // Don't re-encode here, let Dio handle it but with normalized string values
+            options.data = data;
+          }
+        }
+        
         DebugService.apiRequest(
           options.method,
           '${options.baseUrl}${options.path}',
@@ -431,6 +477,20 @@ class ApiService {
 
     final response = await _dio.get('/companions/can-evaluate', queryParameters: {
       'session_id': sessionId,
+    });
+
+    return response.data;
+  }
+
+  static Future<Map<String, dynamic>> shouldShowCompanionEvaluation({
+    required String date,
+  }) async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await _dio.get('/companions/should-show-evaluation', queryParameters: {
+      'date': date,
     });
 
     return response.data;
@@ -1198,6 +1258,42 @@ class ApiService {
     return response.data;
   }
 
+  /// جلب تقييمات الرفيقات لفصل معين (للمعلمات)
+  static Future<Map<String, dynamic>> getClassCompanionEvaluations({
+    required int classId,
+  }) async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await _dio.get('/teacher/companions/class/$classId/evaluations');
+    return response.data;
+  }
+
+  /// جلب تقييمات الرفيقات لجلسة معينة (للمعلمات)
+  static Future<Map<String, dynamic>> getSessionCompanionEvaluations({
+    required int sessionId,
+  }) async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await _dio.get('/teacher/companions/session/$sessionId/evaluations');
+    return response.data;
+  }
+
+  /// جلب تقييمات الرفيقات لطالبة معينة (للمعلمات)
+  static Future<Map<String, dynamic>> getStudentCompanionEvaluations({
+    required int studentId,
+  }) async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await _dio.get('/teacher/companions/student/$studentId/evaluations');
+    return response.data;
+  }
+
   /// جلب الطالبات الحاضرات لتقييم التلاوة
   static Future<Map<String, dynamic>> getPresentStudentsForRecitation({int? classId}) async {
     if (_token == null) {
@@ -1443,5 +1539,123 @@ class ApiService {
       }
       rethrow;
     }
+  }
+
+  // ==================== Exam Methods ====================
+
+  /// Get available exams for the authenticated student
+  static Future<List<Map<String, dynamic>>> getAvailableExams() async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await _dio.get('/students/exams');
+    final data = response.data;
+    
+    if (data['success'] == true) {
+      return List<Map<String, dynamic>>.from(data['exams'] ?? []);
+    }
+    
+    throw Exception(data['message'] ?? 'Failed to fetch exams');
+  }
+
+  /// Start an exam attempt
+  static Future<Map<String, dynamic>> startExam(int examId) async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await _dio.post('/students/exams/$examId/start');
+    final data = response.data;
+    
+    if (data['success'] == true) {
+      return data;
+    }
+    
+    throw Exception(data['message'] ?? 'Failed to start exam');
+  }
+
+  /// Save exam answers (auto-save)
+  static Future<void> saveExamAnswers(int attemptId, List<Map<String, dynamic>> answers) async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    // Ensure answer_text values are strings (not numbers) for JSON serialization
+    final normalizedAnswers = answers.map((answer) {
+      final normalized = Map<String, dynamic>.from(answer);
+      if (normalized.containsKey('answer_text') && normalized['answer_text'] != null) {
+        // Force conversion to string to prevent JSON from converting "0" to 0
+        normalized['answer_text'] = normalized['answer_text'].toString();
+      }
+      return normalized;
+    }).toList();
+
+    await _dio.post('/students/exams/attempts/$attemptId/save', data: {
+      'answers': normalizedAnswers,
+    });
+  }
+
+  /// Submit exam attempt
+  static Future<Map<String, dynamic>> submitExam(int attemptId, {List<Map<String, dynamic>>? answers}) async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final data = <String, dynamic>{};
+    if (answers != null) {
+      // Ensure answer_text values are strings (not numbers) for JSON serialization
+      // Use jsonEncode/jsonDecode to force string type preservation
+      final normalizedAnswers = answers.map((answer) {
+        final normalized = <String, dynamic>{};
+        normalized['question_id'] = answer['question_id'];
+        
+        // Force answer_text to be string, even if it's "0"
+        if (answer.containsKey('answer_text') && answer['answer_text'] != null) {
+          final textValue = answer['answer_text'];
+          // Convert to string explicitly, handling all cases
+          if (textValue is String) {
+            normalized['answer_text'] = textValue;
+          } else {
+            normalized['answer_text'] = textValue.toString();
+          }
+        } else {
+          normalized['answer_text'] = null;
+        }
+        
+        // Handle answer_boolean
+        if (answer.containsKey('answer_boolean')) {
+          normalized['answer_boolean'] = answer['answer_boolean'];
+        }
+        
+        return normalized;
+      }).toList();
+      data['answers'] = normalizedAnswers;
+    }
+
+    final response = await _dio.post('/students/exams/attempts/$attemptId/submit', data: data);
+    final responseData = response.data;
+    
+    if (responseData['success'] == true) {
+      return responseData;
+    }
+    
+    throw Exception(responseData['message'] ?? 'Failed to submit exam');
+  }
+
+  /// Get exam result
+  static Future<Map<String, dynamic>> getExamResult(int examId) async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await _dio.get('/students/exams/$examId/result');
+    final data = response.data;
+    
+    if (data['success'] == true) {
+      return data;
+    }
+    
+    throw Exception(data['message'] ?? 'Failed to fetch exam result');
   }
 }

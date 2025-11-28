@@ -12,8 +12,12 @@ import '../../features/student/pages/schedule_page.dart';
 import '../../features/student/pages/achievements_page.dart';
 import '../../features/student/pages/notifications_page.dart';
 import '../../features/student/pages/companion_evaluation_page.dart';
+import '../../features/student/pages/exams_list_page.dart';
+import '../../features/student/pages/take_exam_page.dart';
+import '../../features/student/pages/exam_result_page.dart';
 import '../../features/settings/pages/settings_page.dart';
 import '../../features/teacher/pages/teacher_home_page.dart';
+import '../../features/teacher/pages/companion_evaluations_report_page.dart';
 import '../../features/support/pages/support_home_page.dart';
 import '../../features/admin/pages/admin_home_page.dart';
 import '../../features/admin/pages/api_test_page.dart';
@@ -138,6 +142,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const SettingsPage(),
           ),
           GoRoute(
+            path: 'exams',
+            name: 'student-exams',
+            builder: (context, state) => const ExamsListPage(),
+            routes: [
+              GoRoute(
+                path: ':examId/take',
+                name: 'student-take-exam',
+                builder: (context, state) {
+                  final examId = int.parse(state.pathParameters['examId']!);
+                  return TakeExamPage(examId: examId);
+                },
+              ),
+              GoRoute(
+                path: ':examId/result',
+                name: 'student-exam-result',
+                builder: (context, state) {
+                  final examId = int.parse(state.pathParameters['examId']!);
+                  return ExamResultPage(examId: examId);
+                },
+              ),
+            ],
+          ),
+          GoRoute(
             path: 'companion-evaluation',
             name: 'student-companion-evaluation',
             builder: (context, state) {
@@ -179,6 +206,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/teacher/home',
         name: 'teacher-home',
         builder: (context, state) => const TeacherHomePage(),
+        routes: [
+          GoRoute(
+            path: 'companion-evaluations',
+            name: 'teacher-companion-evaluations',
+            builder: (context, state) {
+              final classId = state.uri.queryParameters['class_id'];
+              final sessionId = state.uri.queryParameters['session_id'];
+              final studentId = state.uri.queryParameters['student_id'];
+              
+              return CompanionEvaluationsReportPage(
+                classId: classId != null ? int.tryParse(classId) : null,
+                sessionId: sessionId != null ? int.tryParse(sessionId) : null,
+                studentId: studentId != null ? int.tryParse(studentId) : null,
+              );
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/support/home',

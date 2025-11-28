@@ -35,6 +35,8 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
   String? _logDate; // Store the log date
   int? _classId; // Store the class ID
   bool _hasCheckedAttendance = false; // Track if attendance was checked for first task
+  Timer? _evaluationCheckTimer; // Timer to check for evaluation at 11 AM
+  bool _hasShownEvaluation = false; // Track if evaluation was already shown
 
   @override
   void initState() {
@@ -59,6 +61,22 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
 
     _loadDailyTasks();
     _checkAttendanceOnLoad(); // Pre-check attendance when page loads
+    _startEvaluationCheckTimer(); // Start checking for evaluation time
+  }
+  
+  void _startEvaluationCheckTimer() {
+    // Check every minute if it's 11 AM or later
+    _evaluationCheckTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+      final now = DateTime.now();
+      final today = now.toIso8601String().split('T')[0];
+      
+      // Check if it's 11 AM or later
+      if (now.hour >= 11 && !_hasShownEvaluation && _logDate == today) {
+        _checkAndShowEvaluation();
+        _hasShownEvaluation = true;
+        timer.cancel();
+      }
+    });
   }
 
   Future<void> _checkAttendanceOnLoad() async {
@@ -105,13 +123,141 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
     for (var timer in _taskTimers.values) {
       timer?.cancel();
     }
+    _evaluationCheckTimer?.cancel();
     _animationController.dispose();
     _timerController.dispose();
     _achievementController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadDailyTasks() async {
+  Future<void> _checkAndShowEvaluation() async {
+    if (_logDate == null || _hasShownEvaluation) return;
+    
+    try {
+      final authState = ref.read(authStateProvider);
+      if (authState.token != null) {
+        ApiService.setToken(authState.token!);
+      }
+
+      final response = await ApiService.shouldShowCompanionEvaluation(date: _logDate!);
+      
+      if (response['success'] == true && response['should_show'] == true) {
+        final sessionId = response['session_id'];
+        
+        if (sessionId != null && mounted) {
+          // Get companions for this session
+          final companionsResponse = await ApiService.getMyCompanions(date: _logDate);
+          
+          if (companionsResponse['success'] == true && 
+              companionsResponse['companions'] != null &&
+              (companionsResponse['companions'] as List).isNotEmpty) {
+            
+            final companions = List<Map<String, dynamic>>.from(companionsResponse['companions']);
+            final companion = companions.first;
+            
+            if (companion['id'] != null) {
+              // Mark as shown to prevent multiple dialogs
+              _hasShownEvaluation = true;
+              // Show evaluation dialog
+              _showEvaluationDialog(sessionId.toString(), companion);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error checking evaluation: $e');
+    }
+  }
+
+  void _showEvaluationDialog(String sessionId, Map<String, dynamic> companion) {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.star, color: AppTokens.primaryGreen),
+            SizedBox(width: 8),
+            Text('تقييم الرفيقة'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'تم إكمال جميع المهام بنجاح!\nهل تريد تقييم رفيقتك الآن؟',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 16),
+            if (companion['name'] != null)
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTokens.primaryGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.person, color: AppTokens.primaryGreen),
+                    SizedBox(width: 8),
+                    Text(
+                      'الرفيقة: ${companion['name']}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTokens.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('لاحقاً'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _navigateToEvaluation(sessionId, companion);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTokens.primaryGreen,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('تقييم الآن'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToEvaluation(String sessionId, Map<String, dynamic> companion) {
+    try {
+      final companionData = {
+        'id': companion['id'],
+        'name': companion['name'] ?? 'الرفيقة',
+      };
+
+      final companionJson = Uri.encodeComponent(jsonEncode(companionData));
+      context.go('/student/home/companion-evaluation?session_id=$sessionId&companion=$companionJson');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ في الانتقال إلى صفحة التقييم'),
+            backgroundColor: AppTokens.errorRed,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadDailyTasks({bool preserveCompletedStatus = false}) async {
     try {
       setState(() {
         _isLoading = true;
@@ -131,14 +277,46 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
         final logDate = response['date'];
         final classId = response['class_id'];
         
-        // Initialize task states
+        // If preserving completed status, merge with existing tasks
+        List<Map<String, dynamic>> updatedTasks;
+        if (preserveCompletedStatus && _dailyTasks.isNotEmpty) {
+          updatedTasks = tasks.map<Map<String, dynamic>>((task) {
+            // Find matching task in existing list by task_id or class_task_assignment_id
+            final existingTask = _dailyTasks.firstWhere(
+              (t) => (t['task_id'] == task['task_id'] || 
+                      t['class_task_assignment_id'] == task['class_task_assignment_id']),
+              orElse: () => {},
+            );
+            
+            // If task was completed locally, preserve that status
+            if (existingTask.isNotEmpty && existingTask['completed'] == true) {
+              return {
+                ...task,
+                'completed': true,
+                'status': 'completed',
+              };
+            }
+            return task;
+          }).toList();
+        } else {
+          updatedTasks = List<Map<String, dynamic>>.from(tasks);
+        }
+        
+        // Initialize task states - keep current expanded state if preserving
         final states = <int, bool>{};
-        for (int i = 0; i < tasks.length; i++) {
-          states[i] = i == 0; // First task expanded
+        if (preserveCompletedStatus && _expandedTasks.isNotEmpty) {
+          // Preserve current expanded state
+          for (int i = 0; i < updatedTasks.length; i++) {
+            states[i] = _expandedTasks[i] ?? (i == 0);
+          }
+        } else {
+          for (int i = 0; i < updatedTasks.length; i++) {
+            states[i] = i == 0; // First task expanded
+          }
         }
         
         setState(() {
-          _dailyTasks = List<Map<String, dynamic>>.from(tasks);
+          _dailyTasks = updatedTasks;
           _expandedTasks = states;
           _logDate = logDate;
           _classId = classId;
@@ -260,7 +438,15 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
 
         if (shouldCheckIn == true) {
           if (mounted) {
-            context.go('/student/home/schedule');
+            // Don't navigate away - let user stay on tasks page
+            // They can navigate manually if needed
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('يرجى تسجيل الحضور من القائمة الرئيسية أولاً'),
+                backgroundColor: AppTokens.warningOrange,
+                duration: Duration(seconds: 3),
+              ),
+            );
           }
           return false;
         }
@@ -404,6 +590,14 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
       // Submit to API
       try {
         await _submitTaskToAPI(task, duration);
+        // After successful submission, refresh tasks from server
+        // Backend now clears cache, so we should get fresh data
+        if (mounted) {
+          // Small delay to ensure backend has processed the update and cleared cache
+          await Future.delayed(const Duration(milliseconds: 800));
+          // Don't preserve status - let backend return the actual status
+          _loadDailyTasks(preserveCompletedStatus: false);
+        }
       } catch (apiError) {
         print('API submission failed: $apiError');
         // Show error but don't prevent local completion
@@ -449,16 +643,32 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
         final allTasksCompleted = _dailyTasks.every((task) => task['completed'] == true);
         
         if (allTasksCompleted) {
+          // Check if in_class tasks are completed
+          final inClassTasks = _dailyTasks.where((task) => 
+            task['task_location'] == 'in_class' || 
+            task['task_location'] == 'أثناء الحلقة'
+          ).toList();
+          
+          final allInClassCompleted = inClassTasks.isEmpty || 
+            inClassTasks.every((task) => task['completed'] == true);
+          
+          // Check if evaluation should be shown
+          if (allInClassCompleted && _logDate != null) {
+            _checkAndShowEvaluation();
+          }
+          
           // Show completion message and stay on the page
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Row(
                   children: [
                     Icon(Icons.check_circle, color: Colors.white),
                     SizedBox(width: 8),
                     Expanded(
-                      child: Text('تم إكمال جميع المهام بنجاح! يمكنك تقييم الرفيقة من القائمة الرئيسية'),
+                      child: Text(allInClassCompleted 
+                        ? 'تم إكمال جميع المهام بنجاح! يمكنك تقييم الرفيقة الآن'
+                        : 'تم إكمال جميع المهام بنجاح! يمكنك تقييم الرفيقة من القائمة الرئيسية'),
                     ),
                   ],
                 ),
@@ -467,8 +677,8 @@ class _StudentDailyTasksPageNewState extends ConsumerState<StudentDailyTasksPage
               ),
             );
             
-            // Refresh tasks to show updated status
-            _loadDailyTasks();
+            // Refresh tasks to show updated status, preserving completed status
+            _loadDailyTasks(preserveCompletedStatus: true);
           }
         } else {
           // Not all tasks completed - find next uncompleted task and open it
