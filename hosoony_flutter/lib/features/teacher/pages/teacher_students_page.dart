@@ -149,12 +149,6 @@ class _TeacherStudentsPageState extends ConsumerState<TeacherStudentsPage>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              _showAddStudentDialog();
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadStudents,
           ),
@@ -454,66 +448,14 @@ class _TeacherStudentsPageState extends ConsumerState<TeacherStudentsPage>
               ),
             ),
             
-            // Actions
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                switch (value) {
-                  case 'view':
-                    _viewStudentDetails(student);
-                    break;
-                  case 'edit':
-                    _editStudent(student);
-                    break;
-                  case 'tasks':
-                    _viewStudentTasks(student);
-                    break;
-                  case 'delete':
-                    _deleteStudent(student);
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'view',
-                  child: Row(
-                    children: [
-                      Icon(Icons.visibility),
-                      SizedBox(width: 8),
-                      Text('عرض التفاصيل'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit),
-                      SizedBox(width: 8),
-                      Text('تعديل'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'tasks',
-                  child: Row(
-                    children: [
-                      Icon(Icons.task_alt),
-                      SizedBox(width: 8),
-                      Text('المهام'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete),
-                      SizedBox(width: 8),
-                      Text('حذف'),
-                    ],
-                  ),
-                ),
-              ],
+            // Actions - فقط تعطيل/تفعيل الحساب
+            IconButton(
+              icon: Icon(
+                isActive ? Icons.block : Icons.check_circle,
+                color: isActive ? Colors.orange : AppTokens.successGreen,
+              ),
+              onPressed: () => _toggleStudentStatus(student),
+              tooltip: isActive ? 'تعطيل الحساب' : 'تفعيل الحساب',
             ),
           ],
         ),
@@ -521,63 +463,92 @@ class _TeacherStudentsPageState extends ConsumerState<TeacherStudentsPage>
     );
   }
 
-  void _showAddStudentDialog() {
-    showDialog(
+  Future<void> _toggleStudentStatus(Map<String, dynamic> student) async {
+    final isActive = student['status'] == 'active';
+    final action = isActive ? 'تعطيل' : 'تفعيل';
+    
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('إضافة طالبة جديدة'),
-        content: const Text('هذه الميزة ستكون متاحة قريباً'),
+        title: Text('$action حساب الطالبة'),
+        content: Text(
+          isActive
+              ? 'هل أنت متأكد من تعطيل حساب ${student['name']}؟\n\nسيتم تعطيل الحساب ولن تتمكن الطالبة من تسجيل الدخول.'
+              : 'هل أنت متأكد من تفعيل حساب ${student['name']}؟\n\nسيتم تفعيل الحساب وستتمكن الطالبة من تسجيل الدخول.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('موافق'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _viewStudentDetails(Map<String, dynamic> student) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('عرض تفاصيل ${student['name']}')),
-    );
-  }
-
-  void _editStudent(Map<String, dynamic> student) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('تعديل ${student['name']}')),
-    );
-  }
-
-  void _viewStudentTasks(Map<String, dynamic> student) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('مهام ${student['name']}')),
-    );
-  }
-
-  void _deleteStudent(Map<String, dynamic> student) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من حذف ${student['name']}؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('إلغاء'),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('تم حذف ${student['name']}')),
-              );
-            },
-            child: const Text('حذف'),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isActive ? Colors.orange : AppTokens.successGreen,
+              foregroundColor: AppTokens.neutralWhite,
+            ),
+            child: Text(action),
           ),
         ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final authState = ref.read(authStateProvider);
+      if (authState.token != null) {
+        ApiService.setToken(authState.token!);
+      }
+
+      // استدعاء API لتعطيل/تفعيل الحساب
+      final response = await ApiService.toggleStudentStatus(student['id'] as int);
+
+      if (response['success'] == true) {
+        // تحديث حالة الطالبة في القائمة
+        setState(() {
+          final index = _students.indexWhere((s) => s['id'] == student['id']);
+          if (index != -1) {
+            _students[index]['status'] = response['student']?['status'] ?? (isActive ? 'suspended' : 'active');
+          }
+        });
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'تم $action الحساب بنجاح'),
+              backgroundColor: AppTokens.successGreen,
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'حدث خطأ في $action الحساب'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 }
 

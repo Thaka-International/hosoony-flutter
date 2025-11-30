@@ -25,6 +25,7 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # تطبيق الإعدادات على جميع الـ Pods targets
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
@@ -34,17 +35,103 @@ post_install do |installer|
       # إصلاح تحذيرات deprecation و warnings
       config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
       config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
-      config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
       
-      # إصلاح مشكلة FirebaseCore headers
-      if target.name == 'FirebaseCore'
+      # إصلاح تحذيرات FirebaseCore double-quoted includes
+      config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+      config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
+      
+      # تعطيل Code Signing للـ Pods (موصى به من Xcode)
+      config.build_settings['CODE_SIGN_IDENTITY'] = ''
+      config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+      
+      # تفعيل Module Verifier (موصى به من Xcode) - لكن تعطيله للـ Flutter plugins
+      config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+      config.build_settings['CLANG_MODULES_AUTOLINK'] = 'YES'
+      
+      # تحديد ما إذا كان target من Flutter plugins
+      is_flutter_plugin = target.name.start_with?('flutter_') || 
+                          target.name.start_with?('Flutter') ||
+                          target.name == 'Flutter'
+      
+      # تطبيق Module Verifier للـ Pods العادية فقط (ليس Flutter plugins)
+      if !is_flutter_plugin
+        # تفعيل Module Verifier للـ Pods العادية (connectivity_plus, Firebase, إلخ)
+        config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'YES'
+        config.build_settings['DEFINES_MODULE'] = 'YES'
+      else
+        # للـ Flutter plugins: تفعيل DEFINES_MODULE لكن تعطيل Module Verifier
+        # هذا يحل مشكلة "MODULEMAP_FILE has no effect if DEFINES_MODULE is not set"
+        config.build_settings['DEFINES_MODULE'] = 'YES'
+        config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'NO'  # تعطيل Module Verifier فقط
         config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+      end
+      
+      # إصلاح مشكلة flutter_local_notifications - إضافة Flutter framework path
+      if target.name.include?('flutter_local_notifications')
+        config.build_settings['DEFINES_MODULE'] = 'YES'  # تفعيل DEFINES_MODULE
+        config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'NO'  # تعطيل Module Verifier فقط
+        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        # إضافة Flutter framework إلى header search paths
+        flutter_framework_path = File.join(FLUTTER_ROOT, 'bin', 'cache', 'artifacts', 'engine', 'ios')
+        config.build_settings['HEADER_SEARCH_PATHS'] ||= []
+        config.build_settings['HEADER_SEARCH_PATHS'] << "\"#{flutter_framework_path}/Flutter.framework/Headers\""
+        config.build_settings['HEADER_SEARCH_PATHS'] << "\"#{flutter_framework_path}/Flutter.framework/Headers/Flutter\""
+      end
+      
+      # إصلاح مشكلة FirebaseCore headers بشكل خاص
+      if target.name.include?('FirebaseCore') || target.name.include?('Firebase')
+        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
+        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
       end
       
       # إصلاح مشكلة firebase_core incompatible pointer
       if target.name.include?('firebase_core') || target.name.include?('Firebase')
         config.build_settings['CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF'] = 'NO'
       end
+    end
+  end
+  
+  # تطبيق الإعدادات على Pods project نفسه (هذا مهم لمنع ظهور الحوار)
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+    config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+    config.build_settings['CLANG_MODULES_AUTOLINK'] = 'YES'
+    # لا نطبق Module Verifier على المشروع نفسه - فقط على الـ targets
+  end
+  
+  # إضافة إعدادات إضافية لتجنب تحذيرات Xcode
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      # إضافة إعدادات إضافية لتجنب تحذيرات Xcode
+      config.build_settings['ALWAYS_SEARCH_USER_PATHS'] = 'NO'
+      config.build_settings['CLANG_ANALYZER_NONNULL'] = 'YES'
+      config.build_settings['CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION'] = 'YES_AGGRESSIVE'
+      config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'gnu++17'
+      config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
+      config.build_settings['CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING'] = 'YES'
+      config.build_settings['CLANG_WARN_BOOL_CONVERSION'] = 'YES'
+      config.build_settings['CLANG_WARN_COMMA'] = 'YES'
+      config.build_settings['CLANG_WARN_CONSTANT_CONVERSION'] = 'YES'
+      config.build_settings['CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS'] = 'YES'
+      config.build_settings['CLANG_WARN_DIRECT_OBJC_ISA_USAGE'] = 'YES_ERROR'
+      config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
+      config.build_settings['CLANG_WARN_EMPTY_BODY'] = 'YES'
+      config.build_settings['CLANG_WARN_ENUM_CONVERSION'] = 'YES'
+      config.build_settings['CLANG_WARN_INFINITE_RECURSION'] = 'YES'
+      config.build_settings['CLANG_WARN_INT_CONVERSION'] = 'YES'
+      config.build_settings['CLANG_WARN_NON_LITERAL_NULL_CONVERSION'] = 'YES'
+      config.build_settings['CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF'] = 'NO'
+      config.build_settings['CLANG_WARN_OBJC_LITERAL_CONVERSION'] = 'YES'
+      config.build_settings['CLANG_WARN_OBJC_ROOT_CLASS'] = 'YES_ERROR'
+      config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+      config.build_settings['CLANG_WARN_RANGE_LOOP_ANALYSIS'] = 'YES'
+      config.build_settings['CLANG_WARN_STRICT_PROTOTYPES'] = 'YES'
+      config.build_settings['CLANG_WARN_SUSPICIOUS_MOVE'] = 'YES'
+      config.build_settings['CLANG_WARN_UNGUARDED_AVAILABILITY'] = 'YES_AGGRESSIVE'
+      config.build_settings['CLANG_WARN_UNREACHABLE_CODE'] = 'YES'
+      config.build_settings['CLANG_WARN__DUPLICATE_METHOD_MATCH'] = 'YES'
     end
   end
 end

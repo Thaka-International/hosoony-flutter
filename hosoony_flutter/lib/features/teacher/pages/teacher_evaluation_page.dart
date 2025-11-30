@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/api_service.dart';
 
 class TeacherEvaluationPage extends ConsumerStatefulWidget {
   const TeacherEvaluationPage({super.key});
@@ -15,14 +17,16 @@ class _TeacherEvaluationPageState extends ConsumerState<TeacherEvaluationPage>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _slideAnimation;
+  late Animation<Offset> _slideAnimation;
   
   List<Map<String, dynamic>> _students = [];
   List<Map<String, dynamic>> _evaluations = [];
+  List<Map<String, dynamic>> _classes = [];
   bool _isLoading = true;
   String? _error;
   String _selectedStudent = '';
   String _selectedPeriod = 'هذا الأسبوع';
+  int? _selectedClassId;
 
   final List<String> _periods = [
     'هذا الأسبوع',
@@ -48,9 +52,9 @@ class _TeacherEvaluationPageState extends ConsumerState<TeacherEvaluationPage>
       curve: Curves.easeOut,
     ));
 
-    _slideAnimation = Tween<double>(
-      begin: 30.0,
-      end: 0.0,
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeOutCubic,
@@ -72,95 +76,147 @@ class _TeacherEvaluationPageState extends ConsumerState<TeacherEvaluationPage>
         _error = null;
       });
 
-      // Mock data
-      await Future.delayed(const Duration(milliseconds: 1000));
+      final authState = ref.read(authStateProvider);
+      if (authState.token != null) {
+        ApiService.setToken(authState.token!);
+      }
+
+      // تحميل الفصول أولاً
+      await _loadClasses();
+      
+      // تحميل الطلاب والتقييمات
+      if (_selectedClassId != null) {
+        await Future.wait([
+          _loadStudents(),
+          _loadEvaluations(),
+        ]);
+      }
       
       setState(() {
-        _students = [
-          {
-            'id': 1,
-            'name': 'فاطمة أحمد محمد',
-            'level': 'مبتدئة',
-            'avatar': null,
-          },
-          {
-            'id': 2,
-            'name': 'مريم حسن علي',
-            'level': 'متوسطة',
-            'avatar': null,
-          },
-          {
-            'id': 3,
-            'name': 'سارة محمد أحمد',
-            'level': 'متقدمة',
-            'avatar': null,
-          },
-          {
-            'id': 4,
-            'name': 'نور الدين محمد',
-            'level': 'مبتدئة',
-            'avatar': null,
-          },
-          {
-            'id': 5,
-            'name': 'آمنة عبدالله',
-            'level': 'متوسطة',
-            'avatar': null,
-          },
-        ];
-
-        _evaluations = [
-          {
-            'id': 1,
-            'student_id': 1,
-            'student_name': 'فاطمة أحمد محمد',
-            'date': '2024-01-15',
-            'recitation_score': 85,
-            'memorization_score': 90,
-            'understanding_score': 80,
-            'participation_score': 95,
-            'overall_score': 87.5,
-            'comments': 'أداء ممتاز في الحفظ والمشاركة، تحتاج تحسين في الفهم',
-            'teacher_name': 'أ. فاطمة',
-          },
-          {
-            'id': 2,
-            'student_id': 2,
-            'student_name': 'مريم حسن علي',
-            'date': '2024-01-14',
-            'recitation_score': 95,
-            'memorization_score': 88,
-            'understanding_score': 92,
-            'participation_score': 90,
-            'overall_score': 91.25,
-            'comments': 'طالبة مجتهدة ومتفوقة في جميع المجالات',
-            'teacher_name': 'أ. فاطمة',
-          },
-          {
-            'id': 3,
-            'student_id': 3,
-            'student_name': 'سارة محمد أحمد',
-            'date': '2024-01-13',
-            'recitation_score': 90,
-            'memorization_score': 95,
-            'understanding_score': 88,
-            'participation_score': 85,
-            'overall_score': 89.5,
-            'comments': 'ممتازة في الحفظ، تحتاج تحسين في المشاركة',
-            'teacher_name': 'أ. فاطمة',
-          },
-        ];
-        
         _isLoading = false;
       });
       
       _animationController.forward();
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = 'خطأ في تحميل البيانات: ${e.toString()}';
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _loadClasses() async {
+    try {
+      final classes = await ApiService.getMyClasses();
+      setState(() {
+        _classes = classes;
+        if (classes.isNotEmpty && _selectedClassId == null) {
+          _selectedClassId = classes.first['id'] as int?;
+        }
+      });
+    } catch (e) {
+      print('خطأ في تحميل الفصول: $e');
+    }
+  }
+
+  Future<void> _loadStudents() async {
+    try {
+      final students = await ApiService.getClassStudents(classId: _selectedClassId);
+      setState(() {
+        _students = students;
+      });
+    } catch (e) {
+      // خطأ في تحميل الطلاب - سيتم التعامل معه في _loadData
+      setState(() {
+        _students = [];
+      });
+    }
+  }
+
+  Future<void> _loadEvaluations() async {
+    try {
+      final now = DateTime.now();
+      String? startDate;
+      String? endDate = DateFormat('yyyy-MM-dd').format(now);
+
+      switch (_selectedPeriod) {
+        case 'هذا الأسبوع':
+          startDate = DateFormat('yyyy-MM-dd').format(now.subtract(Duration(days: now.weekday - 1)));
+          break;
+        case 'هذا الشهر':
+          startDate = DateFormat('yyyy-MM-dd').format(DateTime(now.year, now.month, 1));
+          break;
+        case 'هذا الفصل':
+          // تقريباً 3 أشهر
+          startDate = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 90)));
+          break;
+        case 'هذا العام':
+          startDate = DateFormat('yyyy-MM-dd').format(DateTime(now.year, 1, 1));
+          break;
+      }
+
+      final response = await ApiService.getRecitationEvaluations(
+        startDate: startDate,
+        endDate: endDate,
+        classId: _selectedClassId,
+      );
+
+      if (response['success'] == true) {
+        final evaluations = List<Map<String, dynamic>>.from(response['evaluations'] ?? []);
+        
+        // تحويل البيانات إلى التنسيق المطلوب
+        setState(() {
+          _evaluations = evaluations.map((eval) {
+            final studentId = eval['student_id'] as int?;
+            Map<String, dynamic> student;
+            if (_students.isNotEmpty && studentId != null) {
+              try {
+                student = _students.firstWhere(
+                  (s) => s['id'] == studentId,
+                  orElse: () => {'name': eval['student']?['name'] ?? 'طالبة غير معروفة'},
+                );
+              } catch (e) {
+                student = {'name': eval['student']?['name'] ?? 'طالبة غير معروفة'};
+              }
+            } else {
+              student = {'name': eval['student']?['name'] ?? 'طالبة غير معروفة'};
+            }
+            
+            return {
+              'id': eval['id'],
+              'student_id': studentId,
+              'student_name': student['name'] ?? 'طالبة غير معروفة',
+              'date': eval['evaluated_at'] ?? eval['created_at'] ?? DateFormat('yyyy-MM-dd').format(now),
+              'recitation_score': eval['recitation_score'] ?? 0,
+              'memorization_score': eval['memorization_score'] ?? 0,
+              'understanding_score': eval['understanding_score'] ?? 0,
+              'participation_score': eval['participation_score'] ?? 0,
+              'overall_score': _calculateOverallScore(eval),
+              'comments': eval['notes'] ?? eval['comments'] ?? '',
+              'teacher_name': eval['teacher']?['name'] ?? '',
+            };
+          }).toList();
+        });
+      } else {
+        setState(() {
+          _evaluations = [];
+        });
+      }
+    } catch (e) {
+      // خطأ في تحميل التقييمات - سيتم التعامل معه في _loadData
+      setState(() {
+        _evaluations = [];
+      });
+    }
+  }
+
+  double _calculateOverallScore(Map<String, dynamic> eval) {
+    final recitation = (eval['recitation_score'] ?? 0) as int;
+    final memorization = (eval['memorization_score'] ?? 0) as int;
+    final understanding = (eval['understanding_score'] ?? 0) as int;
+    final participation = (eval['participation_score'] ?? 0) as int;
+    
+    return (recitation + memorization + understanding + participation) / 4.0;
   }
 
   List<Map<String, dynamic>> get _filteredEvaluations {
@@ -216,13 +272,15 @@ class _TeacherEvaluationPageState extends ConsumerState<TeacherEvaluationPage>
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await ref.read(authStateProvider.notifier).logout();
-              AppRouter.goToLogin(context);
+              if (mounted) {
+                AppRouter.goToLogin(context);
+              }
             },
           ),
         ],
       ),
       body: _isLoading
-          ? Center(
+          ? const Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(AppTokens.primaryGreen),
               ),
@@ -321,6 +379,7 @@ class _TeacherEvaluationPageState extends ConsumerState<TeacherEvaluationPage>
                                     setState(() {
                                       _selectedPeriod = value!;
                                     });
+                                    _loadEvaluations();
                                   },
                                 ),
                               ),
@@ -338,10 +397,7 @@ class _TeacherEvaluationPageState extends ConsumerState<TeacherEvaluationPage>
                           return FadeTransition(
                             opacity: _fadeAnimation,
                             child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.3),
-                                end: Offset.zero,
-                              ).animate(_slideAnimation),
+                              position: _slideAnimation,
                               child: _buildEvaluationsList(),
                             ),
                           );

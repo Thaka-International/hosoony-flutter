@@ -355,14 +355,17 @@ class _CompanionsTabState extends ConsumerState<CompanionsTab> {
   Future<void> _showGenerateCompanionsDialog(BuildContext context) async {
     final formKey = GlobalKey<FormState>();
     final targetDateController = TextEditingController();
-    String? selectedGrouping;
-    String? selectedAlgorithm;
-    String? selectedAttendanceSource;
+    
+    // استخدام ValueNotifier لإدارة حالة الحقول
+    final selectedGrouping = ValueNotifier<String>('pairs');
+    final selectedAlgorithm = ValueNotifier<String>('rotation');
+    final selectedAttendanceSource = ValueNotifier<String>('committed_only');
 
     await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) {
+          return AlertDialog(
           title: const Text('توليد رفيقات جديدة'),
           content: SingleChildScrollView(
             child: Form(
@@ -403,50 +406,65 @@ class _CompanionsTabState extends ConsumerState<CompanionsTab> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedGrouping ?? 'pairs',
-                    decoration: const InputDecoration(labelText: 'نوع التجميع *'),
-                    items: const [
-                      DropdownMenuItem(value: 'pairs', child: Text('ثنائيات')),
-                      DropdownMenuItem(value: 'triplets', child: Text('ثلاثيات')),
-                    ],
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selectedGrouping = value;
-                      });
+                  ValueListenableBuilder<String>(
+                    valueListenable: selectedGrouping,
+                    builder: (context, groupingValue, _) {
+                      return DropdownButtonFormField<String>(
+                        value: groupingValue,
+                        decoration: const InputDecoration(labelText: 'نوع التجميع *'),
+                        items: const [
+                          DropdownMenuItem(value: 'pairs', child: Text('ثنائيات')),
+                          DropdownMenuItem(value: 'triplets', child: Text('ثلاثيات')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            selectedGrouping.value = value;
+                          }
+                        },
+                        validator: (value) => value == null ? 'اختر نوع التجميع' : null,
+                      );
                     },
-                    validator: (value) => value == null ? 'اختر نوع التجميع' : null,
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedAlgorithm ?? 'rotation',
-                    decoration: const InputDecoration(labelText: 'خوارزمية التوزيع *'),
-                    items: const [
-                      DropdownMenuItem(value: 'random', child: Text('عشوائي')),
-                      DropdownMenuItem(value: 'rotation', child: Text('تدوير')),
-                      DropdownMenuItem(value: 'manual', child: Text('يدوي')),
-                    ],
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selectedAlgorithm = value;
-                      });
+                  ValueListenableBuilder<String>(
+                    valueListenable: selectedAlgorithm,
+                    builder: (context, algorithmValue, _) {
+                      return DropdownButtonFormField<String>(
+                        value: algorithmValue,
+                        decoration: const InputDecoration(labelText: 'خوارزمية التوزيع *'),
+                        items: const [
+                          DropdownMenuItem(value: 'random', child: Text('عشوائي')),
+                          DropdownMenuItem(value: 'rotation', child: Text('تدوير')),
+                          DropdownMenuItem(value: 'manual', child: Text('يدوي')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            selectedAlgorithm.value = value;
+                          }
+                        },
+                        validator: (value) => value == null ? 'اختر الخوارزمية' : null,
+                      );
                     },
-                    validator: (value) => value == null ? 'اختر الخوارزمية' : null,
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedAttendanceSource ?? 'committed_only',
-                    decoration: const InputDecoration(labelText: 'مصدر الحضور *'),
-                    items: const [
-                      DropdownMenuItem(value: 'all', child: Text('جميع الطالبات')),
-                      DropdownMenuItem(value: 'committed_only', child: Text('الملتزمات فقط')),
-                    ],
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selectedAttendanceSource = value;
-                      });
+                  ValueListenableBuilder<String>(
+                    valueListenable: selectedAttendanceSource,
+                    builder: (context, attendanceValue, _) {
+                      return DropdownButtonFormField<String>(
+                        value: attendanceValue,
+                        decoration: const InputDecoration(labelText: 'مصدر الحضور *'),
+                        items: const [
+                          DropdownMenuItem(value: 'all', child: Text('جميع الطالبات')),
+                          DropdownMenuItem(value: 'committed_only', child: Text('الملتزمات فقط')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            selectedAttendanceSource.value = value;
+                          }
+                        },
+                        validator: (value) => value == null ? 'اختر مصدر الحضور' : null,
+                      );
                     },
-                    validator: (value) => value == null ? 'اختر مصدر الحضور' : null,
                   ),
                 ],
               ),
@@ -468,9 +486,9 @@ class _CompanionsTabState extends ConsumerState<CompanionsTab> {
 
                     await ApiService.generateCompanions(
                       targetDate: targetDateController.text,
-                      grouping: selectedGrouping!,
-                      algorithm: selectedAlgorithm!,
-                      attendanceSource: selectedAttendanceSource!,
+                      grouping: selectedGrouping.value,
+                      algorithm: selectedAlgorithm.value,
+                      attendanceSource: selectedAttendanceSource.value,
                       classId: widget.classId,
                     );
 
@@ -499,7 +517,8 @@ class _CompanionsTabState extends ConsumerState<CompanionsTab> {
               child: const Text('توليد'),
             ),
           ],
-        ),
+          );
+        },
       ),
     );
   }

@@ -503,18 +503,7 @@ class ApiService {
       throw Exception('No authentication token available');
     }
 
-    // إذا لم يتم تحديد class_id، احصل عليه من معلومات المستخدم
-    int? finalClassId = classId;
-    if (finalClassId == null) {
-      final meData = await getMe();
-      finalClassId = meData['data']?['class_id'] as int?;
-    }
-
-    if (finalClassId == null) {
-      throw Exception('No class_id available');
-    }
-
-    // استخدام endpoint جديد للمعلمات
+    // استخدام endpoint جديد للمعلمات (لا يحتاج class_id)
     try {
       final response = await _dio.get('/teacher/class/students');
       if (response.data['success'] == true) {
@@ -522,16 +511,19 @@ class ApiService {
       }
       return [];
     } catch (e) {
-      // Fallback: محاولة مع class_id مباشرة
-      try {
-        final response = await _dio.get('/teacher/class/$finalClassId/students');
-        if (response.data['success'] == true) {
-          return List<Map<String, dynamic>>.from(response.data['students'] ?? []);
+      // Fallback: إذا كان class_id محدداً، جرب معه
+      if (classId != null) {
+        try {
+          final response = await _dio.get('/teacher/class/$classId/students');
+          if (response.data['success'] == true) {
+            return List<Map<String, dynamic>>.from(response.data['students'] ?? []);
+          }
+          return [];
+        } catch (_) {
+          // Continue to throw original error
         }
-        return [];
-      } catch (_) {
-        rethrow;
       }
+      rethrow;
     }
   }
 
@@ -541,33 +533,30 @@ class ApiService {
       throw Exception('No authentication token available');
     }
 
-    int? finalClassId = classId;
-    if (finalClassId == null) {
-      final meData = await getMe();
-      finalClassId = meData['data']?['class_id'] as int?;
-    }
-
-    if (finalClassId == null) {
-      throw Exception('No class_id available');
-    }
-
     try {
-      // استخدام endpoint جديد للمعلمات
+      // استخدام endpoint جديد للمعلمات (لا يحتاج class_id)
       final response = await _dio.get('/teacher/class/schedule');
       return response.data;
     } catch (e) {
-      // Fallback: محاولة مع class_id مباشرة
-      try {
-        final response = await _dio.get('/teacher/class/$finalClassId/schedule');
-        return response.data;
-      } catch (_) {
-        // Fallback أخير: استخدام /me/schedule
-        if (e is DioException && e.response?.statusCode == 404) {
+      // Fallback: إذا كان class_id محدداً، جرب معه
+      if (classId != null) {
+        try {
+          final response = await _dio.get('/teacher/class/$classId/schedule');
+          return response.data;
+        } catch (_) {
+          // Continue to throw original error
+        }
+      }
+      // Fallback أخير: استخدام /me/schedule
+      if (e is DioException && e.response?.statusCode == 404) {
+        try {
           final response = await _dio.get('/me/schedule');
           return response.data;
+        } catch (_) {
+          rethrow;
         }
-        rethrow;
       }
+      rethrow;
     }
   }
 
@@ -1657,5 +1646,15 @@ class ApiService {
     }
     
     throw Exception(data['message'] ?? 'Failed to fetch exam result');
+  }
+
+  /// تعطيل/تفعيل حساب الطالبة (للمعلمات)
+  static Future<Map<String, dynamic>> toggleStudentStatus(int studentId) async {
+    if (_token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await _dio.post('/teacher/students/$studentId/toggle-status');
+    return response.data;
   }
 }
